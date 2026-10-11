@@ -304,6 +304,15 @@ DEFECT_PATTERNS = [
     (r"sim\s?-?(?:uzrakt\w*|lock\w*|blok\w*)|(?:operatori\w*|tinklo) (?:uzrakt\w*|blok\w*)|"
      r"tik (?:su |\w+ )?(?:tele2|telia|bites?|bitei|pildyk\w*|labas\w*|ezys\w*)\b",
      "SIM užraktas", 0.0),
+    # Atsiskaitymas / susirasinejimas ne per Vinted (be pirkejo apsaugos) – dazniausia apgavyste
+    # (2026-10-11: iPhone 13 su „bankiniu pavedimu“ pavadinime nusiustas i Free grupe). risk.py tuos
+    # pacius zodzius tik pazymi kortelėje ir neiginiu nesupranta; cia – atmetama, bet „jokių
+    # pavedimų“, „ne pavedimu“, „be pavedimų“, „pavedimų nepriimu“, „tik per Vinted“ – ne.
+    (r"(?<!\bne )(?<!\bnei )(?<!\bnenaudoju )(?:paved\w*|perved\w*|revolut\w*|paysera|pay ?pal|"
+     r"western union|bank transfer|wire transfer|przelew\w*|blik\b)|"
+     r"whats ?app|viber\w*|telegram\w*|messenger\w*|(?:ne|be) per vinted|be vinted\b|uz vinted rib\w*|"
+     r"apeinant vinted|outside vinted|not through vinted",
+     "mokėjimas ne per Vinted", 0.0),
     # Be baterijos telefono neisbandysi. „be baterijos keitimo / problemu“ – ne tas pats.
     (r"(?:be|nera|truksta|neturi|isimt\w*|no|without|missing) (?:akum\w*|baterij\w*|batarej\w*|battery)\b"
      r"(?! (?:problem|keit|pakeit|bed|defekt|gedim|nusidev|susidev|sveikat|degrad|isnaud|issues?|replace|health)\w*)",
@@ -344,7 +353,7 @@ DEFECT_PATTERNS = [
     (r"ibrez\w*|subraiz\w*|scratch\w*|nubraiz\w*", "įbrėžimai", 0.95),
 ]
 _DEFECT_RE = [(re.compile(r"\b(?:" + p + r")"), label, f) for p, label, f in DEFECT_PATTERNS]
-_NE_IS_DEFECT = {"kažkas neveikia", "neveikia Face ID", "neįsijungia / nesikrauna", "netestuotas",
+_NE_IS_DEFECT = {"mokėjimas ne per Vinted", "kažkas neveikia", "neveikia Face ID", "neįsijungia / nesikrauna", "netestuotas",
                  "užrakintas kodu", "ekrano gedimas", "neaiški kilmė", "be baterijos"}
 _NEGATION_IS_DEFECT = {"be baterijos"}
 # Neiginiai PRIES defekta: „be įskilimų“, „nebuvo daužtas“, „niekada nebuvo taisytas“
@@ -358,7 +367,8 @@ _NEGATE_AFTER = {"atristas", "atrista", "atrisiu", "atrisamas",
                  "clean", "unlocked", "nepriristas", "neprisietas",
                  "atrakintas", "atrakinta", "pasalintas", "pasalinta",
                  "islogintas", "isloginta", "removed",
-                 "neturi", "neturiu", "nepastebeta", "nepastebejau", "nerasta", "none"}
+                 "neturi", "neturiu", "nepastebeta", "nepastebejau", "nerasta", "none",
+                 "nepriimu", "nepriimam", "nesiulykit", "nesiulykite"}
 _NEGATE_AFTER_WORDS = 4
 # Uzrakto etiketems paneigimas gali buti ir PRIES zodi: „atrištas nuo iCloud“, „iCloud švarus“.
 _LOCK_LABELS = {"iCloud užraktas", "užblokuotas", "užrakintas kodu", "SIM užraktas"}

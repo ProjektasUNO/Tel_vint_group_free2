@@ -129,6 +129,18 @@ class DefectTest(unittest.TestCase):
                      "simpatiškas telefonas", "simbolinė kaina"]:
             self.assertNotIn("SIM užraktas", self.labels(text), text)
 
+    def test_payment_outside_vinted(self):
+        """2026-10-11: iPhone 13 su „bankiniu pavedimu“ pavadinime nusiųstas į Free grupę."""
+        for text in ["iPhone 13 bankiniu pavedimu", "Atsiskaitymas tik pavedimu", "Mokėjimas bankiniu pervedimu",
+                     "galiu per Revolut", "rašykit WhatsApp", "susisiekit per Telegram", "parduodu ne per Vinted",
+                     "už Vinted ribų pigiau", "PayPal", "bank transfer only", "Tylko płatność blik"]:
+            self.assertIn("mokėjimas ne per Vinted", self.labels(text), text)
+            self.assertTrue(any(f == 0 for _, f in find_defects(text)), text)
+        for text in ["Tik per Vinted, jokių pavedimų", "ne pavedimu, tik per Vinted", "be pavedimų",
+                     "pavedimų nepriimu", "Siunčiu per Vinted, nenaudoju pavedimų", "iPhone 13 128GB tvarkingas",
+                     "perku per Vinted saugiai", "blikčioja ekranas"]:
+            self.assertNotIn("mokėjimas ne per Vinted", self.labels(text), text)
+
     def test_accessory_anywhere_in_title(self):
         """Gyvas log'as: „Iphone 17 pro case 2€“ buvo skaiciuojamas kaip „per pigus telefonas“."""
         from vinted.phone import is_accessory

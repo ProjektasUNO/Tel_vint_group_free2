@@ -54,7 +54,8 @@ class CheapNoRankTest(unittest.TestCase):
                              ("Ne viskas veikia, siunčiu per Vinted", {})]:
             deal, log = run("iPhone 12 mini", RARE, "iPhone 12 mini", 70, desc, **kwargs)
             self.assertIsNone(deal, (desc, kwargs))
-            self.assertIn("nepraėjo papildomos patikros", log)
+            # „WhatsApp“ atmetamas dar anksciau – kaip mokejimas ne per Vinted (phone.py)
+            self.assertTrue("nepraėjo papildomos patikros" in log or "mokėjimas ne per Vinted" in log, log)
 
     def test_guessed_value_checked_from_60_percent(self):
         """Kai verte tik spejama (patikimumas „l“), patikra nuo 60 %, ne 50 % (Xiaomi Mi 11 uz 60 €

@@ -124,14 +124,15 @@ class RunWritesArchiveTest(unittest.TestCase):
 
         Be jo klausimas „kas tai per skelbimai" reiškė naršyklę ir po vieno –
         o dauguma jau būna ištrinti. Gyvai tai buvo arba lenkiškas „tylko blik",
-        arba tikrai sugedęs telefonas."""
+        arba tikrai sugedęs telefonas. („tylko blik“ nuo 2026-10-11 atmetamas dar
+        anksčiau – kaip mokėjimas ne per Vinted, tad čia neutralus pavadinimas.)"""
         from vinted.market import Market
         with TempDir():
             reset_config(BRANDS=["apple"])
             m = Market()
-            m.observe([listing(1, "Iphone 15 pro - tylko blik", 196.0, user_id=1)], day=100)
+            m.observe([listing(1, "Iphone 15 pro 128gb", 196.0, user_id=1)], day=100)
             skip = [e for e in m.drain_events() if e.get("why") == "below_floor"][0]
-            self.assertEqual(skip["ti"], "Iphone 15 pro - tylko blik")
+            self.assertEqual(skip["ti"], "Iphone 15 pro 128gb")
 
     def test_obvious_junk_does_not_bloat_the_archive(self):
         """82 % atmetimu yra <20 % ribos (dekle, stiklai, dalys) – ju pavadinimu
