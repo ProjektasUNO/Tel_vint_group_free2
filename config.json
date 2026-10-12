@@ -25,6 +25,7 @@
     "nothing"
   ],
   "MODELS": [],
+  "BLOCKED_SELLERS": ["antanas119991", "antanas19991", "antanasa19991"],
   "SEARCH_QUERIES": [
     "iPhone 8",
     "iPhone 8 Plus",

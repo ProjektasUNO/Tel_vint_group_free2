@@ -26,6 +26,7 @@ from .sources.vinted_source import VintedSource
 from .state import State, load_seen, save_seen
 from .telegram import Telegram
 from .tracker import report_text
+from .util import is_blocked_seller
 from .util import human_age, money
 
 
@@ -121,6 +122,11 @@ class Run:
             # Saltinis jau is saraso zino, kad netinka – nebegaistam skelbimo puslapiui
             self.new_seen[uid] = time.time()
             return self.reject(listing.skip_reason, title[:45])
+
+        if is_blocked_seller(listing, c.get("BLOCKED_SELLERS")):
+            # Admino uzblokuotas pardavejas (/blokuoti) – nei pranesimo, nei i rinkos kaina
+            self.new_seen[uid] = time.time()
+            return self.reject_bad(uid, "blokuotas", "užblokuotas pardavėjas", title[:45])
 
         model = detect_model(title)
         if model and hasattr(source, "note_ids"):

@@ -73,6 +73,9 @@ DEFAULTS = {
     # puslapi ir pries pardavejo salies uzklausa – tad ribotos uzklausos atitenka tiems,
     # kurie tau rupi.
     "MODELS": [],
+    # Pardavejai, kuriu skelbimu nesiusti (Vinted vartotojo vardas arba ID / profilio nuoroda).
+    # Keiciama ir Telegram'e: /blokuoti vardas, /atblokuoti vardas.
+    "BLOCKED_SELLERS": [],
     "SEARCH_QUERIES": [
         "iPhone 8", "iPhone 8 Plus", "iPhone X", "iPhone XR", "iPhone XS", "iPhone XS Max",
         "iPhone 11", "iPhone 11 Pro", "iPhone 11 Pro Max", "iPhone 12", "iPhone 12 mini",
@@ -451,7 +454,7 @@ def _load(path):
 # Raktai, kuriuos galima keisti Telegram komandomis
 OVERRIDABLE = {"MIN_PROFIT_EUR", "MIN_DISCOUNT", "MIN_BATTERY", "LOUD_DISCOUNT", "MARKET_PRICES", "PAUSED", "TIDY_ONLY",
                "MARKET_PERCENTILE", "SHOW_PROFIT", "AUTO_CALIBRATE", "DEAL_MODE", "RANK_TOP_PCT", "MODELS",
-               "MAX_ALERTS_PER_RUN"}
+               "MAX_ALERTS_PER_RUN", "BLOCKED_SELLERS"}
 
 
 def apply_overrides(overrides):

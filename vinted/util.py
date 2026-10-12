@@ -12,6 +12,27 @@ def fold(text):
     return "".join(c for c in unicodedata.normalize("NFKD", text or "") if not unicodedata.combining(c))
 
 
+def seller_key(text):
+    """Pardavejo raktas blokavimui: '@Antanas19991' -> 'antanas19991',
+    'https://www.vinted.lt/member/123456-antanas' -> '123456' (ID patikimiau nei vardas)."""
+    t = str(text or "").strip()
+    m = re.search(r"/member/(\d+)", t)
+    if m:
+        return m.group(1)
+    return fold(t.lstrip("@")).lower()
+
+
+def is_blocked_seller(listing, blocked):
+    """Ar skelbimo pardavejas yra BLOCKED_SELLERS sarase (pagal Vinted ID arba vartotojo varda)."""
+    if not blocked:
+        return False
+    raw = listing.raw if isinstance(listing.raw, dict) else {}
+    user = raw.get("user") if isinstance(raw.get("user"), dict) else {}
+    keys = {seller_key(listing.seller_id), seller_key(user.get("login") or (listing.seller or {}).get("login"))}
+    keys.discard("")
+    return bool(keys & {seller_key(b) for b in blocked})
+
+
 def word_regex(words):
     parts = sorted((re.escape(w) for w in words), key=len, reverse=True)
     return re.compile(r"\b(?:" + "|".join(parts) + r")\b")

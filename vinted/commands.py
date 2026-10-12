@@ -6,7 +6,7 @@ import re
 from . import catalog, config, phone
 from .phone import (normalize_model_name, normalize_storage, wanted_models,
                     display, MODEL_ORDER)
-from .util import fold
+from .util import fold, seller_key
 
 HELP = """<b>Komandos</b>
 /modeliai – kurių modelių pasiūlymus siųsti
@@ -33,6 +33,8 @@ HELP = """<b>Komandos</b>
 /tikslumas – kiek vertinimas atitinka realias pardavimo kainas
 /kalibruoti taip|ne – ar taisyti vertinimą automatiškai
 /nustatymai – dabartiniai nustatymai
+/blokuoti vardas – nesiųsti šio Vinted pardavėjo skelbimų (be vardo – sąrašas)
+/atblokuoti vardas – vėl siųsti
 <i>Komandos įvykdomos kito paleidimo metu.</i>"""
 
 
@@ -493,6 +495,25 @@ def handle(text, state):
         if cmd in ("testi", "tęsti"):
             _set(state, "PAUSED", False)
             return "▶️ Skelbimai vėl siunčiami"
+
+        if cmd in ("blokuoti", "blokuok", "block"):
+            blocked = [seller_key(b) for b in (c.get("BLOCKED_SELLERS") or [])]
+            if not args:
+                return ("<b>Užblokuoti pardavėjai</b>\n" + ("\n".join(blocked) or "nėra")
+                        + "\n\n/blokuoti vardas – pridėti, /atblokuoti vardas – pašalinti")
+            key = seller_key(args)
+            if not key:
+                raise ValueError
+            if key not in blocked:
+                blocked.append(key)
+            _set(state, "BLOCKED_SELLERS", blocked)
+            return f"⛔ {key} – šio pardavėjo skelbimai nebus siunčiami"
+
+        if cmd in ("atblokuoti", "unblock"):
+            key = seller_key(args)
+            blocked = [b for b in (seller_key(x) for x in (c.get("BLOCKED_SELLERS") or [])) if b != key]
+            _set(state, "BLOCKED_SELLERS", blocked)
+            return f"✅ {key} – skelbimai vėl bus siunčiami"
 
         if cmd == "nustatymai":
             manual = config.market_prices()
