@@ -116,6 +116,16 @@ class DefectTest(unittest.TestCase):
                      "bloknotas dovanų", "lokalus pardavimas", "su blokeliu"]:
             self.assertNotIn("užblokuotas", self.labels(text), text)
 
+    def test_battery_problem(self):
+        """2026-10-14: iPhone 12 su „tik su baterija problema“ nusiųstas kaip veikiantis."""
+        for text in ["Ekranas geros būklės, tik dengiamasis stikliukas jau susidėvėjas. Viskas veikia puikiai "
+                     "tik su baterija problema", "baterijos problema", "problemos su baterija", "baterija silpna",
+                     "baterija greit sėda", "baterija išsipūtusi", "battery drains fast", "weak battery"]:
+            self.assertIn("baterijos problema", self.labels(text), text)
+        for text in ["be problemų su baterija", "jokių problemų su baterija", "baterijos problemų nėra",
+                     "Baterija 90%, jokių problemų", "Baterija 100%", "nauja baterija"]:
+            self.assertNotIn("baterijos problema", self.labels(text), text)
+
     def test_sim_lock(self):
         """2026-10-10: iPhone su SIM užraktu nusiųstas kaip deal'as (-50 %)."""
         for text in ["SIM užraktas", "Telefonas turi sim užraktą", "parduodu su SIM užraktu", "Sim uzraktas",

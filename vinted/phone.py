@@ -347,6 +347,14 @@ DEFECT_PATTERNS = [
     (r"no face ?id|be face ?id|face ?id neveik\w*|neveik\w* face ?id", "neveikia Face ID", 0.75),
     (r"neveik\w*|not working|doesn.?t work", "kažkas neveikia", 0.70),
     (r"keist\w* ekran\w*|replaced screen|neoriginal\w* ekran\w*|ne originalus ekranas", "keistas ekranas", 0.85),
+    # „tik su baterija problema“, „baterija silpna“, „greit sėda“ (2026-10-14: iPhone 12 su „baterija
+    # problema“ nusiųstas kaip veikiantis). Keitimas kainuoja ~40–60 €, tad vertė mažesnė, bet ne 0.
+    # „be problemų su baterija“, „baterijos problemų nėra“, „baterija 90 %, jokių problemų“ – ne.
+    (r"baterij\w* (?:\w+ ){0,2}problem\w*|problem\w* (?:\w+ ){0,2}baterij\w*|akumuliator\w* problem\w*|"
+     r"baterij\w* (?:silpn\w*|blog\w*|prast\w*|nelaiko|greit\w* (?:sed\w*|isikrau\w*|baig\w*)|"
+     r"isipu\w*|issipu\w*)|"
+     r"battery (?:issues?|problems?|drains?|is weak|is bad)|(?:bad|weak|poor|swollen) battery",
+     "baterijos problema", 0.70),
     (r"keist\w* baterij\w*|neoriginal\w* baterij\w*|service battery", "keista baterija", 0.92),
     (r"remont\w*|reikia keisti|taisyt\w*", "reikia remonto", 0.65),
     (r"defekt\w*", "defektai", 0.85),
