@@ -12,6 +12,13 @@ from vinted.state import State
 
 
 class DetectTest(unittest.TestCase):
+    def test_looks_converted(self):
+        from vinted.util import looks_converted
+        for p in (550, 182.5, 219.99, 99.9, 49.95, 19.49, None):
+            self.assertFalse(looks_converted(p), p)
+        for p in (532.28, 692.64, 166.7, 23.15):
+            self.assertTrue(looks_converted(p), p)
+
     def test_models(self):
         cases = {
             "iPad Pro 11 M1 128GB": ("ipad", "iPad Pro 11 M1", "128 GB"),

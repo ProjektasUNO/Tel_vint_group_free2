@@ -27,7 +27,7 @@ from .state import State, load_seen, save_seen
 from . import products
 from .telegram import Telegram
 from .tracker import report_text
-from .util import is_blocked_seller
+from .util import is_blocked_seller, looks_converted
 from .util import human_age, money
 
 
@@ -905,10 +905,10 @@ class Run:
         if needs_request and not resolution_on:
             todo, backfill = [], []
         def cents_last(l):
-            """Apvalios kainos – pirmos. Perskaiciuota PLN kaina beveik visada su centais
-            (692.64 €), o lietuviska – apvali (550 €), tad ribotos uzklausos eina tiems,
-            kurie labiau panasus i lietuviskus."""
-            return abs(l.price - round(l.price)) > 0.004
+            """Apvalios ir „parduotuvines“ kainos – pirmos. Perskaiciuota PLN kaina turi
+            atsitiktinius centus (692.64 €), o lietuviska – apvali (550 €) ar 219.99 €, tad
+            ribotos uzklausos eina tiems, kurie labiau panasus i lietuviskus."""
+            return looks_converted(l.price)
 
         todo.sort(key=cents_last)
         backfill.sort(key=cents_last)
@@ -1252,13 +1252,8 @@ class Run:
         asked_total = unknown_total = 0
 
         def converted(source, price):
-            """Zloto perskaiciavimas Vinted'e duoda atsitiktinius centus (532.28). Lietuviai
-            kainas raso apvalias arba „parduotuvines“: x.50, x.90, x.95, x.99, x.49 – tokios
-            paliekamos (gyvai: is 326 LT telefonu 5 buvo su centais, pvz. 182.5, 219.99)."""
-            if source.name != "vinted":
-                return False
-            cents = round(price * 100) % 100
-            return cents not in (0, 49, 50, 90, 95, 99)
+            # Tik Vinted'e kainos perskaiciuojamos is kitu valiutu (zr. util.looks_converted)
+            return source.name == "vinted" and looks_converted(price)
 
         for source in sources:
             mine = [k for k in known if k.startswith(source.name + ":")]

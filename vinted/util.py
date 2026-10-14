@@ -102,3 +102,18 @@ def percentile(values, q):
     pos = (len(v) - 1) * q
     lo, hi = int(pos), min(int(pos) + 1, len(v) - 1)
     return v[lo] + (v[hi] - v[lo]) * (pos - lo)
+
+
+# Lietuviu „parduotuvines“ kainos: 182.50, 219.99, 99.90, 49.95, 19.49
+SHOP_CENTS = (0, 49, 50, 90, 95, 99)
+
+
+def looks_converted(price):
+    """Ar kaina panasi i perskaiciuota is kitos valiutos (zlotai -> 532.28 €).
+
+    Lietuviai kainas raso apvalias arba „parduotuvines“ (x.50, x.90, x.95, x.99, x.49), o
+    perskaiciuota kaina turi atsitiktinius centus. Gyvai: is 326 patvirtintu LT telefonu 5
+    buvo su centais (182.5, 219.99...) – todel vien „yra centu“ neuztenka."""
+    if price is None:
+        return False
+    return round(float(price) * 100) % 100 not in SHOP_CENTS
