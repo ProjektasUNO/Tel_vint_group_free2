@@ -1233,94 +1233,103 @@ class Run:
     # --- Apple produktai (tik rinkimas) --------------------------------------
     def observe_products(self):
         """iPad, MacBook, AirPods, iMac, Mac mini – kainos i archyva, NIEKO nesiunciama.
-        Tik katalogo puslapiai; paieska sustoja ties jau matytais (iprastai 1 uzklausa).
+        Vinted ir Pirkpard; tik katalogo puslapiai, paieska sustoja ties jau matytais.
 
-        Tik LIETUVOS skelbimai: uzsienio kalba ir kainos su centais (perskaiciuoti zloci) –
-        atmetami be uzklausu; kitiems pardavejo salis is atminties arba is Vinted, bet tik is
-        nepanaudotos telefonu salies kvotos (SELLER_COUNTRY_LOOKUPS) – paleidimo riba nedideja.
-        Salies nezinant skelbimas neirasomas – bus bandoma kitame paleidime."""
+        Tik LIETUVOS skelbimai: uzsienio kalba atmetama be uzklausu; Vinted – dar ir kainos
+        su centais (perskaiciuoti zloci), o kitiems pardavejo salis is atminties arba is
+        Vinted, bet tik is nepanaudotos telefonu salies kvotos (SELLER_COUNTRY_LOOKUPS) –
+        paleidimo riba nedideja. Salies nezinant skelbimas neirasomas – kitame paleidime.
+        Pirkpard pardavejo salį pasako jau sarase."""
         c = config.cfg
-        source = next((s for s in self.sources if s.name == "vinted" and not s.unavailable), None)
-        if source is None:
+        sources = [s for s in self.sources if s.name in ("vinted", "pirkpard") and not s.unavailable]
+        if not sources:
             return
         known = self.state.products
-        pages = c["PRODUCT_PAGES"] if known else max(c["PRODUCT_PAGES"], 3)
         today = int(time.time() // 86400)
         allowed = set(c["ALLOWED_COUNTRY_CODES"])
         limit = int(c["SELLER_COUNTRY_LOOKUPS"]) if c["FILTER_BY_COUNTRY"] else 0
         own = int(c["PRODUCT_COUNTRY_LOOKUPS"])     # produktu dalis is bendros kvotos
         asked_total = unknown_total = 0
-        for q in c["PRODUCT_QUERIES"]:
-            if self.out_of_time() or source.unavailable:
-                break
-            self.wait_out_cooldown(source, True, queries_left=1)
-            seen = {uid: 0 for uid in list(known)}
-            listings = source.search(q, pages, seen)
-            new = changed = rejected = 0
-            for x in listings:
-                if x.uid in known or x.price is None or products.detect(x.title) is None:
-                    continue
-                if products.reject_reason(x.title) or detect_foreign_language(x.title) or \
-                        abs(x.price - round(x.price)) > 0.004:
-                    continue                    # atmetama zemiau, be salies uzklausos
-                if not c["FILTER_BY_COUNTRY"]:
-                    continue
-                key = f"{x.source}:{x.seller_id}"
-                country = ((x.seller or {}).get("country")
-                           or (self.state.seller_country(key) if x.seller_id else None))
-                if not country:
-                    with self.lock:
-                        left = limit - self.country_used.get(source.name, 0)
-                    if left <= 0 or asked_total >= own or source.country_lookups_blocked \
-                            or self.out_of_time():
-                        continue
-                    country = source.seller_country(x)
-                    with self.lock:
-                        self.country_used[source.name] = self.country_used.get(source.name, 0) + 1
-                    asked_total += 1
-                    self.sleep(c["DETAIL_SLEEP_SECONDS"])
-                    if country and x.seller_id:
-                        with self.lock:
-                            self.state.remember_seller(key, country)
-                if country:
-                    x.seller = {**(x.seller or {}), "country": country}
-            with self.state.market.lock:
+
+        def converted(source, price):
+            # Zloto perskaiciavimas Vinted'e duoda centus; lietuviai kainas raso apvalias
+            return source.name == "vinted" and abs(price - round(price)) > 0.004
+
+        for source in sources:
+            mine = [k for k in known if k.startswith(source.name + ":")]
+            pages = c["PRODUCT_PAGES"] if mine else max(c["PRODUCT_PAGES"], 3)
+            if source.name == "pirkpard":
+                pages = 1                           # 100 skelbimu puslapyje – uztenka
+            for q in c["PRODUCT_QUERIES"]:
+                if self.out_of_time() or source.unavailable:
+                    break
+                self.wait_out_cooldown(source, True, queries_left=1)
+                seen = {uid: 0 for uid in mine}
+                listings = source.search(q, pages, seen)
+                new = changed = rejected = 0
                 for x in listings:
-                    p = products.detect(x.title)
-                    if p is None or x.price is None:
+                    if x.uid in known or x.price is None or products.detect(x.title) is None:
                         continue
-                    old = known.get(x.uid)
-                    if old is None:
-                        lang = detect_foreign_language(x.title)
-                        country = (x.seller or {}).get("country")
-                        why = (products.reject_reason(x.title)
-                               or (f"kalba ({lang})" if lang else None)
-                               or ("uzsienio kaina (centai)" if abs(x.price - round(x.price)) > 0.004 else None)
-                               or (f"salis ({country})" if country and country not in allowed else None))
-                        if not why and c["FILTER_BY_COUNTRY"] and not country:
-                            unknown_total += 1
-                            continue            # salis nezinoma – kitame paleidime
-                        if why:
-                            known[x.uid] = "x"
-                            rejected += 1
-                            self.state.market._event("px", x.uid, today, c=p["cat"], why=why, p=x.price,
-                                                     ti=x.title[:80])
+                    if products.reject_reason(x.title) or detect_foreign_language(x.title) or \
+                            converted(source, x.price) or not c["FILTER_BY_COUNTRY"]:
+                        continue                    # sprendziama zemiau, be salies uzklausos
+                    key = f"{x.source}:{x.seller_id}"
+                    country = ((x.seller or {}).get("country")
+                               or (self.state.seller_country(key) if x.seller_id else None))
+                    if not country and getattr(source, "country_needs_request", False):
+                        with self.lock:
+                            left = limit - self.country_used.get(source.name, 0)
+                        if left <= 0 or asked_total >= own or source.country_lookups_blocked \
+                                or self.out_of_time():
                             continue
-                        known[x.uid] = [x.price, today, today]
-                        new += 1
-                        self.state.market._event(
-                            "pobs", x.uid, today, c=p["cat"], m=p["model"], st=p["storage"], ram=p["ram"],
-                            p=x.price, tp=x.total_price, cond=x.condition, ti=x.title[:80],
-                            ct=(x.seller or {}).get("country"))
-                    elif isinstance(old, list):
-                        if abs(float(old[0]) - x.price) >= 0.5:
-                            changed += 1
-                            self.state.market._event("pprice", x.uid, today, p=x.price, pp=old[0])
-                            old[0] = x.price
-                        old[2] = today
-            print(f"Apple produktai [{q}]: gauta {len(listings)}, nauju {new}, kainos pasikeite {changed}, "
-                  f"atmesta {rejected} (rinkimas – nesiunciama)")
-            self.sleep(c["SLEEP_SECONDS"])
+                        country = source.seller_country(x)
+                        with self.lock:
+                            self.country_used[source.name] = self.country_used.get(source.name, 0) + 1
+                        asked_total += 1
+                        self.sleep(c["DETAIL_SLEEP_SECONDS"])
+                        if country and x.seller_id:
+                            with self.lock:
+                                self.state.remember_seller(key, country)
+                    if country:
+                        x.seller = {**(x.seller or {}), "country": country}
+                with self.state.market.lock:
+                    for x in listings:
+                        p = products.detect(x.title)
+                        if p is None or x.price is None:
+                            continue
+                        old = known.get(x.uid)
+                        if old is None:
+                            lang = detect_foreign_language(x.title)
+                            country = (x.seller or {}).get("country")
+                            why = (products.reject_reason(x.title)
+                                   or (f"kalba ({lang})" if lang else None)
+                                   or ("uzsienio kaina (centai)" if converted(source, x.price) else None)
+                                   or (f"salis ({country})" if country and country not in allowed else None))
+                            if not why and c["FILTER_BY_COUNTRY"] and not country:
+                                unknown_total += 1
+                                continue            # salis nezinoma – kitame paleidime
+                            if why:
+                                known[x.uid] = "x"
+                                rejected += 1
+                                self.state.market._event("px", x.uid, today, c=p["cat"], why=why, p=x.price,
+                                                         ti=x.title[:80])
+                                continue
+                            known[x.uid] = [x.price, today, today]
+                            new += 1
+                            self.state.market._event(
+                                "pobs", x.uid, today, c=p["cat"], m=p["model"], st=p["storage"], ram=p["ram"],
+                                p=x.price, tp=x.total_price, cond=x.condition, ti=x.title[:80],
+                                ct=(x.seller or {}).get("country"))
+                        elif isinstance(old, list):
+                            if abs(float(old[0]) - x.price) >= 0.5:
+                                changed += 1
+                                self.state.market._event("pprice", x.uid, today, p=x.price, pp=old[0])
+                                old[0] = x.price
+                            old[2] = today
+                where = q if source.name == "vinted" else f"{source.label}: {q}"
+                print(f"Apple produktai [{where}]: gauta {len(listings)}, nauju {new}, kainos pasikeite "
+                      f"{changed}, atmesta {rejected} (rinkimas – nesiunciama)")
+                self.sleep(c["SLEEP_SECONDS"])
         if asked_total or unknown_total:
             print(f"Apple produktai: pardavejo salies uzklausu {asked_total}, "
                   f"salis nezinoma (kitam paleidimui) {unknown_total}")

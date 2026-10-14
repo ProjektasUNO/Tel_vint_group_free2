@@ -152,5 +152,31 @@ class ObserveTest(unittest.TestCase):
             self.assertIn("pardavejo salies uzklausu 2, salis nezinoma (kitam paleidimui) 3", log)
 
 
+    def test_pirkpard(self):
+        """Pirkpard: pardavejo salis jau sarase (LT), centai nieko nereiskia, uzklausu nera."""
+        from tests.fixtures import pirkpard_response
+        from vinted.sources.pirkpard import PirkpardSource
+
+        def row(iid, title, price, country=None):
+            return {"id": iid, "title": title, "price": str(price), "currency_code": "EUR",
+                    "handle": f"h{iid}", "vendor": {"id": iid, "country": country}}
+
+        class Api:
+            last_error = blocked = ""
+            def start(self): pass
+            def sleep(self, s): pass
+            def get_json(self, params, tries=3):
+                rows = {"ipad": [row(1, "iPad Air 5 64GB", 299.99), row(2, "iPad dėklas", 10),
+                                 row(3, "iPad Pro 11", 400, country="LV")]}.get(params["search"], [])
+                return pirkpard_response(rows)
+
+        with TempDir(), contextlib.redirect_stdout(io.StringIO()) as out:
+            Run([PirkpardSource(client=Api())], FakeTelegram(), sleep=lambda s: None).run()
+            ev = [e for e in archive.read() if e["e"] in ("pobs", "px")]
+        self.assertEqual([(e["id"], e["p"], e["ct"]) for e in ev if e["e"] == "pobs"],
+                         [("pirkpard:1", 299.99, "LT")])
+        self.assertEqual(sorted(e["why"] for e in ev if e["e"] == "px"), ["priedas", "salis (LV)"])
+        self.assertIn("Apple produktai [Pirkpard: ipad]: gauta 3, nauju 1", out.getvalue())
+
 if __name__ == "__main__":
     unittest.main()
