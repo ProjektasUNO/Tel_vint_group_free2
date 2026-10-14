@@ -78,7 +78,8 @@
   "TIDY_ONLY": true,
   "MIN_CONDITION": "Gera",
   "ALLOWED_DEFECTS": [
-    "įbrėžimai"
+    "įbrėžimai",
+    "baterijos problema"
   ],
   "MARKET_PRICES": {},
   "USE_SOLD_PRICES": true,

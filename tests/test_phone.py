@@ -126,6 +126,15 @@ class DefectTest(unittest.TestCase):
                      "Baterija 90%, jokių problemų", "Baterija 100%", "nauja baterija"]:
             self.assertNotIn("baterijos problema", self.labels(text), text)
 
+    def test_battery_problem_value(self):
+        """Keitimas pačiam ~20–30 € – fiksuota suma, ne procentas; baterijos % nebesvarbus."""
+        from vinted.phone import estimate_value, BATTERY_SWAP_COST
+        bad = [("baterijos problema", 1.0)]
+        self.assertAlmostEqual(estimate_value(120, None, None, bad), 120 * 0.95 * 0.92 - BATTERY_SWAP_COST)
+        self.assertAlmostEqual(estimate_value(680, None, None, bad), 680 * 0.95 * 0.92 - BATTERY_SWAP_COST)
+        self.assertEqual(estimate_value(120, None, 70, bad), estimate_value(120, None, None, bad))
+        self.assertTrue(20 <= BATTERY_SWAP_COST <= 30)
+
     def test_sim_lock(self):
         """2026-10-10: iPhone su SIM užraktu nusiųstas kaip deal'as (-50 %)."""
         for text in ["SIM užraktas", "Telefonas turi sim užraktą", "parduodu su SIM užraktu", "Sim uzraktas",

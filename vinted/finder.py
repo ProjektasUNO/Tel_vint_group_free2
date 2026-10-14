@@ -296,7 +296,9 @@ class Run:
         # Baterija: nurodyta ir per maza – atmetam, nebent kaina tikrai gera.
         # Nenurodyta – praleidziam, bet kortelėje parasom "nenurodyta".
         battery_low = False
-        if c["MIN_BATTERY"] and battery is not None and battery < c["MIN_BATTERY"]:
+        # „Baterijos problema“ – verte jau skaiciuota su keitimu (phone.estimate_value), % nebesvarbus
+        swap = any(d == "baterijos problema" for d, _ in defects)
+        if c["MIN_BATTERY"] and battery is not None and battery < c["MIN_BATTERY"] and not swap:
             # Isimtis silpnai baterijai – tik kai kaina tikrai isskirtine:
             # pigiausiu budu – pats pigiausias; nuolaidos budu – didele nuolaida.
             isskirtine = (rank.place == 1) if rank is not None \

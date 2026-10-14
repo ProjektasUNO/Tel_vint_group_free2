@@ -131,7 +131,9 @@ DEFAULTS = {
     # --- Tik tvarkingi telefonai ---
     "TIDY_ONLY": True,               # atmesti sugedusius, netestuotus, uzrakintus, su defektais
     "MIN_CONDITION": "Gera",         # blogiausia leidziama bukle: "Labai gera" / "Gera" / "Patenkinama"
-    "ALLOWED_DEFECTS": ["įbrėžimai"],# kurie defektai leidziami, kai TIDY_ONLY
+    # kurie defektai leidziami, kai TIDY_ONLY. „baterijos problema“ – verte su keitimo kaina
+    # (phone.BATTERY_SWAP_COST), keitimas pačiam ~20–30 €.
+    "ALLOWED_DEFECTS": ["įbrėžimai", "baterijos problema"],
 
     # --- Rinkos kaina ---
     "MARKET_PRICES": {},             # rankines kainos: {"13": 180, "13|256 GB": 210}

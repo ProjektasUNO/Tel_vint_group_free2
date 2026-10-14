@@ -348,13 +348,14 @@ DEFECT_PATTERNS = [
     (r"neveik\w*|not working|doesn.?t work", "kažkas neveikia", 0.70),
     (r"keist\w* ekran\w*|replaced screen|neoriginal\w* ekran\w*|ne originalus ekranas", "keistas ekranas", 0.85),
     # „tik su baterija problema“, „baterija silpna“, „greit sėda“ (2026-10-14: iPhone 12 su „baterija
-    # problema“ nusiųstas kaip veikiantis). Keitimas kainuoja ~40–60 €, tad vertė mažesnė, bet ne 0.
+    # problema“ nusiųstas kaip veikiantis). Keitimas pačiam – ~20–30 €: vertė skaičiuojama kaip su
+    # pakeista (neoriginalia) baterija minus BATTERY_SWAP_COST (zr. estimate_value), ne procentais.
     # „be problemų su baterija“, „baterijos problemų nėra“, „baterija 90 %, jokių problemų“ – ne.
     (r"baterij\w* (?:\w+ ){0,2}problem\w*|problem\w* (?:\w+ ){0,2}baterij\w*|akumuliator\w* problem\w*|"
      r"baterij\w* (?:silpn\w*|blog\w*|prast\w*|nelaiko|greit\w* (?:sed\w*|isikrau\w*|baig\w*)|"
      r"isipu\w*|issipu\w*)|"
      r"battery (?:issues?|problems?|drains?|is weak|is bad)|(?:bad|weak|poor|swollen) battery",
-     "baterijos problema", 0.70),
+     "baterijos problema", 1.0),
     (r"keist\w* baterij\w*|neoriginal\w* baterij\w*|service battery", "keista baterija", 0.92),
     (r"remont\w*|reikia keisti|taisyt\w*", "reikia remonto", 0.65),
     (r"defekt\w*", "defektai", 0.85),
@@ -488,12 +489,26 @@ def battery_factor(battery):
     return 0.85
 
 
+# Baterijos keitimas pačiam (detalė + įrankiai), €. „Baterijos problema“ – fiksuota suma, ne
+# procentas: iPhone 12 už 120 € ir 16 Pro už 680 € bateriją pakeisti kainuoja tiek pat.
+BATTERY_SWAP_COST = 25
+
+
 def estimate_value(market, condition, battery, defects):
-    """Konkretaus telefono verte = rinkos kaina x bukle x baterija x defektai."""
-    value = market * CONDITION_FACTOR.get(condition, 0.95) * battery_factor(battery)
-    for _, factor in defects:
+    """Konkretaus telefono verte = rinkos kaina x bukle x baterija x defektai.
+
+    „Baterijos problema“: verte kaip su pakeista neoriginalia baterija (x0.92, kaip
+    „keista baterija“), minus BATTERY_SWAP_COST – pacios baterijos procentas tada nebesvarbus."""
+    swap = any(label == "baterijos problema" for label, _ in defects)
+    bf = 0.92 if swap else battery_factor(battery)
+    value = market * CONDITION_FACTOR.get(condition, 0.95) * bf
+    for label, factor in defects:
+        if swap and label == "keista baterija":
+            continue                    # jau iskaiciuota (x0.92)
         value *= factor
-    return value
+    if swap:
+        value -= BATTERY_SWAP_COST
+    return max(value, 0.0)
 
 
 def estimate_profit(price, resale_value, pickup_only=False, buyer_fee=True, total_price=None):
