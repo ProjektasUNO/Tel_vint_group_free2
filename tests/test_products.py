@@ -1,0 +1,103 @@
+"""Apple produktai (iPad, MacBook, AirPods, iMac, Mac mini) – rinkimo rezimas: atpazinimas,
+priedu/daliu/kopiju atmetimas ir kainu kaupimas archyve. Niekas nesiunciama."""
+import contextlib
+import io
+import unittest
+
+from tests.helpers import reset_config, TempDir, item
+from tests.test_flow import FakeClient, FakeTelegram
+from vinted import archive, config, products
+from vinted.finder import Run
+from vinted.state import State
+
+
+class DetectTest(unittest.TestCase):
+    def test_models(self):
+        cases = {
+            "iPad Pro 11 M1 128GB": ("ipad", "iPad Pro 11 M1", "128 GB"),
+            "Apple iPad Pro 12,9 2021 M1 256GB WiFi": ("ipad", "iPad Pro 12.9 M1", "256 GB"),
+            "iPad Air 5 64GB": ("ipad", "iPad Air 5", "64 GB"),
+            "iPad mini 6 64gb": ("ipad", "iPad mini 6", "64 GB"),
+            "iPad 9 kartos 64GB": ("ipad", "iPad 9", "64 GB"),
+            "iPad 2021 64gb": ("ipad", "iPad 9", "64 GB"),
+            "MacBook Air M1 8GB 256GB": ("macbook", "MacBook Air M1", "256 GB"),
+            "MacBook Pro 14 M1 Pro 16GB 512GB": ("macbook", "MacBook Pro M1 Pro 14", "512 GB"),
+            "MacBook Pro 2019 13\" i5": ("macbook", "MacBook Pro Intel 2019 13", None),
+            "Macbook air 13,6 M2 8/256": ("macbook", "MacBook Air M2 13", "256 GB"),
+            "AirPods Pro 2": ("airpods", "AirPods Pro 2", None),
+            "AirPods Pro (2nd gen) USB-C": ("airpods", "AirPods Pro 2", None),
+            "Airpods 3": ("airpods", "AirPods 3", None),
+            "AirPods Max": ("airpods", "AirPods Max", None),
+            "iMac 24 M1 8/256": ("imac", "iMac 24 M1", "256 GB"),
+            "Mac mini M2 8GB 256GB": ("mac_mini", "Mac mini M2", "256 GB"),
+        }
+        for title, (cat, model, storage) in cases.items():
+            p = products.detect(title)
+            self.assertEqual((p["cat"], p["model"], p["storage"]), (cat, model, storage), title)
+        self.assertEqual(products.detect("MacBook Air M1 8GB 256GB")["ram"], "8 GB")
+
+    def test_not_products(self):
+        for title in ["iPhone 13 + AirPods", "Samsung Galaxy S23", "Apple Watch 8"]:
+            self.assertIsNone(products.detect(title), title)
+
+    def test_reject(self):
+        for title, why in {"MacBook pakrovėjas 61W": "priedas", "iPad Pro 11 dėklas": "priedas",
+                           "Dėklas iPad Air": "priedas", "Magic Keyboard iPad Pro": "priedas",
+                           "AirPods Pro 2 kopija": "kopija", "Kairys AirPods Pro ausinukas": "dalis",
+                           "MacBook Pro ekranas": "dalis"}.items():
+            self.assertEqual(products.reject_reason(title), why, title)
+        for title in ["MacBook Air M1 su dėklu", "iPad Pro 11 + Apple Pencil", "AirPods 2 originalūs, ne kopija",
+                      "iPad Air 4 64GB dėžutė yra", "AirPods Pro 2"]:
+            self.assertIsNone(products.reject_reason(title), title)
+
+
+def run(catalog):
+    tg = FakeTelegram()
+    with contextlib.redirect_stdout(io.StringIO()) as out:
+        Run(FakeClient(catalog), tg, sleep=lambda s: None).run()
+    return tg, out.getvalue()
+
+
+class ObserveTest(unittest.TestCase):
+    def setUp(self):
+        reset_config(HEARTBEAT_HOURS=0, PRODUCTS_OBSERVE=True, PRODUCT_QUERIES=["ipad", "macbook"],
+                     SEARCH_QUERIES=["iPhone 13"])
+
+    def test_collects_without_sending(self):
+        catalog = {"ipad": [item(1, "iPad Air 5 64GB", 300), item(2, "iPad Pro 11 dėklas", 15)],
+                   "macbook": [item(3, "MacBook Air M1 8GB 256GB", 500)]}
+        with TempDir():
+            tg, log = run(catalog)
+            self.assertEqual(tg.deals, [])
+            self.assertIn("Apple produktai [ipad]: gauta 2, nauju 1", log)
+            ev = [e for e in archive.read() if e["e"] in ("pobs", "px", "pprice")]
+            pobs = {e["id"]: e for e in ev if e["e"] == "pobs"}
+            self.assertEqual(pobs["vinted:1"]["m"], "iPad Air 5")
+            self.assertEqual(pobs["vinted:3"]["m"], "MacBook Air M1")
+            self.assertEqual(pobs["vinted:3"]["ram"], "8 GB")
+            self.assertEqual([e["why"] for e in ev if e["e"] == "px"], ["priedas"])
+
+            # Ka tik tikrinta – antras paleidimas po minutes produktu netikrina (PRODUCTS_EVERY_MINUTES)
+            _, log = run(catalog)
+            self.assertNotIn("Apple produktai", log)
+            # Po 15 min.: tie patys – nekartojama; pasikeitusi kaina – pprice
+            st = State.load()
+            st.products_at -= 16 * 60
+            st.save()
+            catalog["ipad"][0] = item(1, "iPad Air 5 64GB", 270)
+            run(catalog)
+            ev = [e for e in archive.read() if e["e"] in ("pobs", "px", "pprice")]
+            self.assertEqual(sum(1 for e in ev if e["e"] == "pobs"), 2)
+            self.assertEqual([(e["id"], e["p"], e["pp"]) for e in ev if e["e"] == "pprice"],
+                             [("vinted:1", 270.0, 300.0)])
+            self.assertEqual(State.load().products["vinted:1"][0], 270.0)
+
+    def test_off_by_default(self):
+        reset_config(HEARTBEAT_HOURS=0, SEARCH_QUERIES=["iPhone 13"])
+        with TempDir():
+            _, log = run({"ipad": [item(1, "iPad Air 5 64GB", 300)]})
+            self.assertNotIn("Apple produktai", log)
+
+
+if __name__ == "__main__":
+    unittest.main()

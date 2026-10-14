@@ -26,6 +26,8 @@
   ],
   "MODELS": [],
   "BLOCKED_SELLERS": ["3197076624"],
+  "PRODUCTS_OBSERVE": true,
+  "PRODUCTS_EVERY_MINUTES": 10,
   "SEARCH_QUERIES": [
     "iPhone 8",
     "iPhone 8 Plus",

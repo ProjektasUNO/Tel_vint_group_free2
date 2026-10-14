@@ -138,6 +138,11 @@ class State:
         # uzklausu greicio riba. GitHub Actions runner'iu IP bendri, tad tikroji riba kinta:
         # zr. finder.Run.learn_rate_limit (po 429 mazinam, po tyliu paleidimu grazinam).
         self.rate_limit = data.get("rate_limit") or {}
+        # Apple produktai (vinted/products.py): {uid: [kaina, pirma_diena, paskutine_diena]}
+        # arba {uid: "x"} (atmestas – priedas/dalis/kopija). Kad archyve butu tik pirmas
+        # pamatymas ir kainos pokyciai, o paieska sustotu ties jau matytais.
+        self.products = data.get("products") or {}
+        self.products_at = float(data.get("products_at") or 0)
 
     SELLER_MAX_ENTRIES = 20000
 
@@ -179,6 +184,19 @@ class State:
         if key and country:
             self.sellers[self.seller_key(key)] = [
                 str(country), int(day if day is not None else time.time() // 86400)]
+
+    PRODUCTS_MAX_ENTRIES = 30000
+    PRODUCTS_KEEP_DAYS = 60
+
+    def _pruned_products(self):
+        today = int(time.time() // 86400)
+        keep = {k: v for k, v in dict(self.products).items()
+                if v == "x" or (isinstance(v, list) and len(v) == 3
+                                and today - int(v[2]) <= self.PRODUCTS_KEEP_DAYS)}
+        if len(keep) > self.PRODUCTS_MAX_ENTRIES:
+            keep = dict(list(keep.items())[-self.PRODUCTS_MAX_ENTRIES:])
+        self.products = keep
+        return keep
 
     def note_detail_failure(self, uid, now=None):
         """Dar vienas nepavykes skelbimo atidarymas. Grazina, kiek kartu is viso."""
@@ -245,5 +263,6 @@ class State:
                 "users": self.users, "source_alerts": self.source_alerts,
                 "source_zero": self.source_zero, "source_down": self.source_down,
                 "tracked": self.tracker.to_dict(), "last_report": self.last_report,
-                "detail_failures": self.detail_failures, "sellers": self.sellers}
+                "detail_failures": self.detail_failures, "sellers": self.sellers,
+                "products": self._pruned_products(), "products_at": self.products_at}
         write_json(path, data, ensure_ascii=False, separators=(",", ":"))

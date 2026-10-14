@@ -24,6 +24,7 @@ from .sources import build_sources, label as source_label
 from .limiter import rate_floor
 from .sources.vinted_source import VintedSource
 from .state import State, load_seen, save_seen
+from . import products
 from .telegram import Telegram
 from .tracker import report_text
 from .util import is_blocked_seller
@@ -1176,6 +1177,10 @@ class Run:
                 print(f"seen.json tuscias – pilnas perziurejimas ({pages} psl. kiekvienai paieskai)")
 
             fetched = self.scan_all(seen, pages)
+            if c.get("PRODUCTS_OBSERVE") and \
+                    time.time() - self.state.products_at >= float(c["PRODUCTS_EVERY_MINUTES"]) * 60:
+                self.state.products_at = time.time()
+                self.step("Apple produktai", self.observe_products)
 
             queries = config.cfg["SEARCH_QUERIES"]
             if c["ROTATE_QUERIES"] and queries:
@@ -1224,6 +1229,54 @@ class Run:
             save_seen(self.new_seen)
 
         print(f"Issiusta {len(self.alerts)} alert'u." if self.alerts else "Nauju deal'u nera.")
+
+    # --- Apple produktai (tik rinkimas) --------------------------------------
+    def observe_products(self):
+        """iPad, MacBook, AirPods, iMac, Mac mini – kainos i archyva, NIEKO nesiunciama.
+        Tik katalogo puslapiai; paieska sustoja ties jau matytais (iprastai 1 uzklausa)."""
+        c = config.cfg
+        source = next((s for s in self.sources if s.name == "vinted" and not s.unavailable), None)
+        if source is None:
+            return
+        known = self.state.products
+        pages = c["PRODUCT_PAGES"] if known else max(c["PRODUCT_PAGES"], 3)
+        today = int(time.time() // 86400)
+        for q in c["PRODUCT_QUERIES"]:
+            if self.out_of_time() or source.unavailable:
+                break
+            self.wait_out_cooldown(source, True, queries_left=1)
+            seen = {uid: 0 for uid in list(known)}
+            listings = source.search(q, pages, seen)
+            new = changed = rejected = 0
+            with self.state.market.lock:
+                for x in listings:
+                    p = products.detect(x.title)
+                    if p is None or x.price is None:
+                        continue
+                    old = known.get(x.uid)
+                    if old is None:
+                        why = products.reject_reason(x.title)
+                        if why:
+                            known[x.uid] = "x"
+                            rejected += 1
+                            self.state.market._event("px", x.uid, today, c=p["cat"], why=why, p=x.price,
+                                                     ti=x.title[:80])
+                            continue
+                        known[x.uid] = [x.price, today, today]
+                        new += 1
+                        self.state.market._event(
+                            "pobs", x.uid, today, c=p["cat"], m=p["model"], st=p["storage"], ram=p["ram"],
+                            p=x.price, tp=x.total_price, cond=x.condition, ti=x.title[:80],
+                            lg=detect_foreign_language(x.title))
+                    elif isinstance(old, list):
+                        if abs(float(old[0]) - x.price) >= 0.5:
+                            changed += 1
+                            self.state.market._event("pprice", x.uid, today, p=x.price, pp=old[0])
+                            old[0] = x.price
+                        old[2] = today
+            print(f"Apple produktai [{q}]: gauta {len(listings)}, nauju {new}, kainos pasikeite {changed}, "
+                  f"atmesta {rejected} (rinkimas – nesiunciama)")
+            self.sleep(c["SLEEP_SECONDS"])
 
     def save_archive(self):
         """Paleidimo ivykiai -> ilgalaikis archyvas (zr. vinted/archive.py). Archyvo klaida

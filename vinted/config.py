@@ -76,6 +76,12 @@ DEFAULTS = {
     # Pardavejai, kuriu skelbimu nesiusti (Vinted vartotojo vardas arba ID / profilio nuoroda).
     # Keiciama ir Telegram'e: /blokuoti vardas, /atblokuoti vardas.
     "BLOCKED_SELLERS": [],
+    # Apple produktai be telefonu (vinted/products.py): iPad, MacBook, AirPods, iMac, Mac mini.
+    # Kol kas tik RINKIMAS – kainos i archyva (pobs/pprice/px), nieko nesiunciama.
+    "PRODUCTS_OBSERVE": False,
+    "PRODUCT_QUERIES": ["ipad", "macbook", "airpods", "imac", "mac mini"],
+    "PRODUCT_PAGES": 2,              # iprastai sustoja jau 1-ame (visi matyti)
+    "PRODUCTS_EVERY_MINUTES": 15,    # ne dazniau nei kas tiek minuciu
     "SEARCH_QUERIES": [
         "iPhone 8", "iPhone 8 Plus", "iPhone X", "iPhone XR", "iPhone XS", "iPhone XS Max",
         "iPhone 11", "iPhone 11 Pro", "iPhone 11 Pro Max", "iPhone 12", "iPhone 12 mini",
