@@ -107,6 +107,22 @@ class EnrichTest(unittest.TestCase):
         r = products.enrich("AirPods", "AirPods Pro 2 su USB-C dėkliuku")
         self.assertEqual((r["model"], r["case"]), ("AirPods Pro 2", "usb-c"))
 
+    def test_live_gaps(self):
+        """Is pirmo gyvo rinkimo su aprasymais (2026-10-14)."""
+        self.assertEqual(products.detect("Ipad mini gen 1")["model"], "iPad mini 1")
+        self.assertEqual(products.detect("Ipad Air2")["model"], "iPad Air 2")
+        self.assertEqual(products.detect("iPad mini4 64GB")["model"], "iPad mini 4")
+        self.assertTrue(products.detect("Macbook pro13-inch i5/8gb/1TB SSD")["model"].startswith("MacBook Pro"))
+        self.assertEqual(products.enrich("MacBook pro 2019", "")["model"], "MacBook Pro Intel 2019")
+        self.assertEqual(products.detect("Apple AirPods 4 (ANC) su triukšmo slopinimu")["model"], "AirPods 4 ANC")
+        self.assertEqual(products.detect("airpods 4 gen")["model"], "AirPods 4")
+        for t in ("Apple AirPods 4 bez ANC – komplet", "Apple AirPods 4 - without active noise cancellation",
+                  "AirPods 4 be triukšmo slopinimo"):
+            self.assertEqual(products.detect(t)["model"], "AirPods 4", t)
+        self.assertEqual(products.detect("Airpods 4 z anc")["model"], "AirPods 4 ANC")
+        self.assertEqual(products.reject_reason("Superku iPad (Air / Pro ) – siūlykite"), "ieskomas")
+        self.assertEqual(products.reject_reason("Perku MacBook Air M1"), "ieskomas")
+
     def test_bundle_and_defects(self):
         self.assertTrue(products.enrich("MacBook Air M1 + iPad 9", "")["bundle"])
         self.assertTrue(products.enrich("iPad Pro 11 + Apple Pencil", "")["bundle"])

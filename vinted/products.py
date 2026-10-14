@@ -146,22 +146,23 @@ def _size(t, allowed):
 
 
 def _ipad_model(t):
-    gen = re.search(r"\b(\d{1,2})\s?(?:th|rd|nd|st)?\s?(?:gen\w*|kart\w*|generation)\b", t)
+    gen = re.search(r"\b(\d{1,2})\s?(?:th|rd|nd|st)?\s?(?:gen\w*|kart\w*|generation)\b", t) or \
+        re.search(r"\b(?:gen|generation|kartos)\s?(\d{1,2})\b", t)
     gen = gen.group(1) if gen else None
     if re.search(r"\bpro\b", t):
         size = _size(t, {"13": "13", "12.9": "12.9", "11": "11", "10.5": "10.5", "9.7": "9.7"})
         chip = _CHIP_RE.search(t)
         parts = ["iPad Pro", size, ("M" + chip.group(1)) if chip else (f"{gen} kart." if gen else None)]
         return " ".join(p for p in parts if p)
-    if re.search(r"\bair\b", t):
+    if re.search(r"\bair(?=\s?\d|\b)", t):
         chip = _CHIP_RE.search(t)
         if chip:
             size = _size(t, {"13": "13", "11": "11"})
             return " ".join(p for p in ["iPad Air", "M" + chip.group(1), size] if p)
-        g = gen or (re.search(r"\bair\s?([2-5])\b", t) or [None, None])[1]
+        g = gen or (re.search(r"\bair\s?([2-5])(?!\d)", t) or [None, None])[1]
         return f"iPad Air {g}" if g else "iPad Air"
-    if re.search(r"\bmini\b", t):
-        g = gen or (re.search(r"\bmini\s?([2-7])\b", t) or [None, None])[1]
+    if re.search(r"\bmini(?=\s?\d|\b)", t):
+        g = gen or (re.search(r"\bmini\s?([1-7])(?!\d)", t) or [None, None])[1]
         if not g and re.search(r"\ba17\b", t):
             g = "7"
         return f"iPad mini {g}" if g else "iPad mini"
@@ -174,7 +175,7 @@ def _ipad_model(t):
 
 
 def _macbook_model(t):
-    line = "MacBook Pro" if re.search(r"\bpro\b(?!\s?(?:max|ultra))|\bmac\s?book\s?pro\b", t) else \
+    line = "MacBook Pro" if re.search(r"\bpro(?=\d|\b)(?!\s?(?:max|ultra))|\bmac\s?book\s?pro", t) else \
         "MacBook Air" if re.search(r"\bair\b", t) else "MacBook"
     chip = _chip(t)
     if chip and chip.startswith("M") and line == "MacBook Pro" and not re.search(r"\bmac\s?book\s?pro\b", t):
@@ -196,7 +197,12 @@ def _airpods_model(t):
         return "AirPods Pro"
     m = re.search(r"\bair\s?pods?\s?([1-4])\b|\b([1-4])(?:st|nd|rd|th)?\s?(?:gen\w*|kart\w*)\b", t)
     if m:
-        return f"AirPods {m.group(1) or m.group(2)}"
+        gen = m.group(1) or m.group(2)
+        anc = re.search(r"\banc\b|triuksm\w* slopin\w*|active noise|noise cancel\w*", t)
+        if gen == "4" and anc and not re.search(r"\b(?:be|bez|without|no|ohne|sans)\s+(?:\w+\s+)?$",
+                                                t[:anc.start()]):
+            return "AirPods 4 ANC"
+        return f"AirPods {gen}"
     return "AirPods"
 
 
@@ -253,6 +259,8 @@ def enrich(title, description=""):
         year = _first((_YEAR_RE.search(tt) or [None, None])[1], (_YEAR_RE.search(td) or [None, None])[1])
         if chip == "Intel" and year:
             chip = f"Intel {year}"
+        elif chip is None and year and int(year) < 2020:
+            chip = f"Intel {year}"                  # iki 2020 visi Mac – su Intel
         if cat == "macbook":
             line = base["model"].split(" M")[0].split(" Intel")[0]
             line = " ".join(w for w in line.split() if not w.isdigit())      # be ekrano dydzio
@@ -301,11 +309,18 @@ _NOT_TECH_RE = re.compile(r"\b(?:batai|bateliai|basutes|buty|baleriny|[sś]niego
                           r"kosmetin\w*)\b|kengat\b")
 
 
+# Ne pardavimas, o pirkimas: „Superku MacBook“, „Perku iPad“, „Ieškau AirPods“
+_WANTED_RE = re.compile(r"\b(?:superku|supirk\w*|perku|pirksiu|ieskau|ieskom\w*|kupi[eę]|skup\w*|"
+                        r"buying|wanted|wtb)\b")
+
+
 def reject_reason(title):
     """Kodel skelbimas netinka rinkos kainai: 'ne technika', 'priedas', 'dalis', 'kopija' arba None."""
     t = _norm(title)
     if _NOT_TECH_RE.search(t):
         return "ne technika"
+    if _WANTED_RE.search(t):
+        return "ieskomas"
     if _FAKE_RE.search(t):
         return "kopija"
     if _PART_RE.search(t):
