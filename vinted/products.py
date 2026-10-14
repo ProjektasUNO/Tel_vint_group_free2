@@ -220,6 +220,81 @@ def detect(title):
             "ram": extract_ram(title) if computer else None}
 
 
+# --- Aprasymas: procesorius, atmintis, variantai ----------------------------
+_CELL_RE = re.compile(r"\b(?:cellular|lte|4g|5g|sim\s?(?:kortel\w*|card)?|e\s?sim|wi\s?fi\s?\+\s?cell\w*)\b")
+_WIFI_ONLY_RE = re.compile(r"\b(?:wi\s?fi\s?only|tik wi\s?fi|only wi\s?fi|be sim\w*|no sim)\b")
+_CASE_RE = [("usb-c", re.compile(r"\busb\s?c\b|\btype\s?c\b")),
+            ("magsafe", re.compile(r"\bmagsafe\b")),
+            ("lightning", re.compile(r"\blightning\b"))]
+GONE = "\x00dingo"          # product_description(): skelbimas jau parduotas / dingo
+_GENERIC = {"iPad", "iPad Air", "iPad Pro", "iPad mini", "AirPods", "AirPods Pro"}
+
+
+def _first(*vals):
+    return next((v for v in vals if v), None)
+
+
+def enrich(title, description=""):
+    """detect() + tai, ka pasako aprasymas. Pavadinimas visada svarbesnis – is aprasymo
+    imama tik tai, ko pavadinime nera (procesorius, metai, ekranas, diskas, RAM, iPad
+    Cellular, AirPods dekliuko jungtis). Grazina None, jei tai ne Apple produktas.
+
+    Papildomi laukai: chip, year, cell (True/False/None), case, bundle, defects."""
+    base = detect(title)
+    if base is None:
+        return None
+    cat = base["cat"]
+    tt, td = _norm(title), _norm(description or "")
+    both = (tt + " " + td).strip()
+    out = dict(base)
+    computer = cat in ("macbook", "imac", "mac_mini")
+    if computer:
+        chip = _first(_chip(tt), _chip(td))
+        year = _first((_YEAR_RE.search(tt) or [None, None])[1], (_YEAR_RE.search(td) or [None, None])[1])
+        if chip == "Intel" and year:
+            chip = f"Intel {year}"
+        if cat == "macbook":
+            line = base["model"].split(" M")[0].split(" Intel")[0]
+            line = " ".join(w for w in line.split() if not w.isdigit())      # be ekrano dydzio
+            if line == "MacBook":
+                line = "MacBook Pro" if re.search(r"\bmac\s?book\s?pro\b", td) else \
+                    "MacBook Air" if re.search(r"\bmac\s?book\s?air\b", td) else "MacBook"
+            sizes = {"13": "13", "13.3": "13", "13.6": "13", "14": "14", "14.2": "14", "15": "15",
+                     "15.3": "15", "15.4": "15", "16": "16", "16.2": "16", "12": "12"}
+            size = _first(_size(tt, sizes), _size(td, sizes))
+            out["model"] = " ".join(p for p in [line, chip, size] if p)
+        elif cat == "imac":
+            sizes = {"24": "24", "27": "27", "21.5": "21.5", "21": "21.5"}
+            size = _first(_size(tt, sizes), _size(td, sizes))
+            out["model"] = " ".join(p for p in ["iMac", size, chip] if p)
+        else:
+            out["model"] = " ".join(p for p in ["Mac mini", chip] if p)
+        out["chip"], out["year"] = chip, year
+        out["storage"] = _first(base["storage"], extract_storage(description or "", True))
+        out["ram"] = _first(base["ram"], extract_ram(description or ""))
+    else:
+        if base["model"] in _GENERIC and td:
+            better = (_ipad_model if cat == "ipad" else _airpods_model)(both)
+            if better not in _GENERIC or len(better) > len(base["model"]):
+                out["model"] = better
+        out["storage"] = _first(base["storage"], extract_storage(description or "") if cat == "ipad" else None)
+    if cat == "ipad":
+        out["cell"] = True if _CELL_RE.search(both) else (False if _WIFI_ONLY_RE.search(both) else None)
+    if cat == "airpods":
+        out["case"] = next((name for name, rx in _CASE_RE if rx.search(both)), None)
+    # Komplektas: keli produktai („MacBook + iPad“) arba su priedu („su dėklu“, „+ Pencil“)
+    cats = {c for c, rx in (("ipad", r"\bi\s?pad\b"), ("macbook", r"\bmac\s?book\b"),
+                            ("airpods", r"\bair\s?pods?\b"), ("imac", r"\bimac\b"),
+                            ("mac_mini", r"\bmac\s?mini\b"), ("iphone", r"\biphone\b"),
+                            ("watch", r"\bapple\s?watch\b")) if re.search(rx, tt)}
+    out["bundle"] = len(cats) > 1 or bool(_BUNDLE_RE.search(tt) and (_ACCESSORY_RE.search(tt) or
+                                                                     re.search(r"\bpencil\b", tt)))
+    from .phone import find_defects
+    out["defects"] = [label for label, _ in find_defects(title, description or "")]
+    out["blocking"] = [label for label, f in find_defects(title, description or "") if f == 0]
+    return out
+
+
 # Ne technika: „IMAC“ yra ir batu prekes zenklas
 _NOT_TECH_RE = re.compile(r"\b(?:batai|bateliai|basutes|buty|baleriny|[sś]niegowce|kozaki|sanda[lł]\w*|"
                           r"trzewiki|klapki|shoes|sneakers|sneakersy|boots|schuhe|kenga\w*|kengat|lenkkar\w*|"

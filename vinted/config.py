@@ -88,6 +88,9 @@ DEFAULTS = {
     # Kiek pardavejo salies uzklausu per paleidima Apple produktams (is bendros
     # SELLER_COUNTRY_LOOKUPS kvotos, ne papildomai). Atsakymai isimenami.
     "PRODUCT_COUNTRY_LOOKUPS": 20,
+    # Kiek Vinted Apple skelbimu per paleidima atidaryti aprasymui (procesorius, RAM,
+    # diskas, defektai). Kiekvienas – viena uzklausa. Pirkpard aprasyma duoda sarase.
+    "PRODUCT_DETAILS_PER_RUN": 10,
     "SEARCH_QUERIES": [
         "iPhone 8", "iPhone 8 Plus", "iPhone X", "iPhone XR", "iPhone XS", "iPhone XS Max",
         "iPhone 11", "iPhone 11 Pro", "iPhone 11 Pro Max", "iPhone 12", "iPhone 12 mini",

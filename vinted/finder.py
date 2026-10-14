@@ -1250,6 +1250,9 @@ class Run:
         limit = int(c["SELLER_COUNTRY_LOOKUPS"]) if c["FILTER_BY_COUNTRY"] else 0
         own = int(c["PRODUCT_COUNTRY_LOOKUPS"])     # produktu dalis is bendros kvotos
         asked_total = unknown_total = 0
+        details_left = int(c["PRODUCT_DETAILS_PER_RUN"])
+        opened = waiting_desc = 0
+        descs = {}                                  # {uid: aprasymas} siam paleidimui
 
         def converted(source, price):
             # Tik Vinted'e kainos perskaiciuojamos is kitu valiutu (zr. util.looks_converted)
@@ -1292,6 +1295,21 @@ class Run:
                                 self.state.remember_seller(key, country)
                     if country:
                         x.seller = {**(x.seller or {}), "country": country}
+                    if country not in allowed:
+                        continue
+                    # Aprasymas: procesorius, metai, diskas, RAM, Cellular, defektai.
+                    # Pirkpard ji duoda sarase; Vinted – viena uzklausa (riba per paleidima).
+                    if not getattr(source, "detail_needs_request", True):
+                        descs[x.uid] = source.detail(x).description or ""
+                        continue
+                    if details_left <= 0 or self.out_of_time():
+                        continue
+                    details_left -= 1
+                    opened += 1
+                    desc = self.product_description(source, x)
+                    self.sleep(c["DETAIL_SLEEP_SECONDS"])
+                    if desc is not None:
+                        descs[x.uid] = desc
                 with self.state.market.lock:
                     for x in listings:
                         p = products.detect(x.title)
@@ -1308,6 +1326,16 @@ class Run:
                             if not why and c["FILTER_BY_COUNTRY"] and not country:
                                 unknown_total += 1
                                 continue            # salis nezinoma – kitame paleidime
+                            desc = descs.get(x.uid)
+                            if not why and desc == products.GONE:
+                                why = "dingo pries atidarant"
+                            elif not why and desc is None:
+                                waiting_desc += 1
+                                continue            # aprasymo dar neperskaitem – kitame paleidime
+                            if not why:
+                                p = products.enrich(x.title, desc) or p
+                                if p.get("blocking"):
+                                    why = "defektas (" + ", ".join(p["blocking"]) + ")"
                             if why:
                                 known[x.uid] = "x"
                                 rejected += 1
@@ -1319,7 +1347,9 @@ class Run:
                             self.state.market._event(
                                 "pobs", x.uid, today, c=p["cat"], m=p["model"], st=p["storage"], ram=p["ram"],
                                 p=x.price, tp=x.total_price, cond=x.condition, ti=x.title[:80],
-                                ct=(x.seller or {}).get("country"))
+                                ct=(x.seller or {}).get("country"), chip=p.get("chip"), yr=p.get("year"),
+                                cell=p.get("cell"), case=p.get("case"), bnd=p.get("bundle") or None,
+                                dfx=p.get("defects") or None, dsc=len(desc or ""))
                         elif isinstance(old, list):
                             if abs(float(old[0]) - x.price) >= 0.5:
                                 changed += 1
@@ -1333,6 +1363,26 @@ class Run:
         if asked_total or unknown_total:
             print(f"Apple produktai: pardavejo salies uzklausu {asked_total}, "
                   f"salis nezinoma (kitam paleidimui) {unknown_total}")
+        if opened or waiting_desc:
+            print(f"Apple produktai: atidaryta skelbimu (aprasymui) {opened}, "
+                  f"laukia aprasymo (kitam paleidimui) {waiting_desc}")
+
+    def product_description(self, source, listing):
+        """Vinted skelbimo aprasymas (viena uzklausa, be pardavejo API). products.GONE –
+        skelbimas jau parduotas/dingo; None – nepavyko (bandysim kitame paleidime)."""
+        from .parsing import listing_status, parse_og_tags
+        try:
+            http_status, page, final_url = source.client.fetch_item_page(listing.url)
+        except Exception as e:                      # tinklo klaida – ne priezastis stoti
+            print(f"  ! Apple produktas {listing.uid}: {e}")
+            return None
+        status = listing_status(http_status, page, final_url, listing.id)
+        if status in ("sold", "gone"):
+            return products.GONE
+        og = parse_og_tags(page)
+        if status != "active" or not og:
+            return None
+        return og.get("description") or ""
 
     def save_archive(self):
         """Paleidimo ivykiai -> ilgalaikis archyvas (zr. vinted/archive.py). Archyvo klaida

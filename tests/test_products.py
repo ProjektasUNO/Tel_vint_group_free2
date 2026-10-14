@@ -76,11 +76,46 @@ class DetectTest(unittest.TestCase):
             self.assertIsNone(products.reject_reason(title), title)
 
 
-def run(catalog, users=None):
+def run(catalog, users=None, pages=None, statuses=None):
     tg = FakeTelegram()
     with contextlib.redirect_stdout(io.StringIO()) as out:
-        Run(FakeClient(catalog, users=users), tg, sleep=lambda s: None).run()
+        Run(FakeClient(catalog, users=users, pages=pages, statuses=statuses), tg,
+            sleep=lambda s: None).run()
     return tg, out.getvalue()
+
+
+class EnrichTest(unittest.TestCase):
+    def test_description_fills_gaps(self):
+        r = products.enrich("MacBook Air 13", "2020 m. M1 procesorius, 8GB RAM, 256GB SSD. Baterija 92%.")
+        self.assertEqual((r["model"], r["chip"], r["ram"], r["storage"]), ("MacBook Air M1 13", "M1", "8 GB", "256 GB"))
+        r = products.enrich("MacBook Pro", "Intel i5, 2017 metai, 13.3 colio, 8/128")
+        self.assertEqual((r["model"], r["ram"], r["storage"]), ("MacBook Pro Intel 2017 13", "8 GB", "128 GB"))
+        r = products.enrich("Apple MacBook", "MacBook Pro 14 M3 Pro 18GB 512GB")
+        self.assertEqual(r["model"], "MacBook Pro M3 Pro 14")
+        r = products.enrich("iMac", "24 colių M1 2021, 8GB 256GB")
+        self.assertEqual(r["model"], "iMac 24 M1")
+
+    def test_title_wins(self):
+        r = products.enrich("MacBook Air M2 8/256", "anksciau turejau M1, bet sis M2")
+        self.assertEqual((r["chip"], r["ram"], r["storage"]), ("M2", "8 GB", "256 GB"))
+
+    def test_variants(self):
+        self.assertTrue(products.enrich("iPad", "iPad Air 5 kartos, 64GB, Wi-Fi + Cellular")["cell"])
+        self.assertEqual(products.enrich("iPad", "iPad Air 5 kartos")["model"], "iPad Air 5")
+        self.assertFalse(products.enrich("iPad Pro 11 M1 128GB", "tik wifi, puiki bukle")["cell"])
+        self.assertIsNone(products.enrich("iPad 9 64GB", "")["cell"])
+        r = products.enrich("AirPods", "AirPods Pro 2 su USB-C dėkliuku")
+        self.assertEqual((r["model"], r["case"]), ("AirPods Pro 2", "usb-c"))
+
+    def test_bundle_and_defects(self):
+        self.assertTrue(products.enrich("MacBook Air M1 + iPad 9", "")["bundle"])
+        self.assertTrue(products.enrich("iPad Pro 11 + Apple Pencil", "")["bundle"])
+        self.assertFalse(products.enrich("MacBook Air M1 8/256", "")["bundle"])
+        r = products.enrich("MacBook Pro 13 M1 8/256", "iCloud užrakintas")
+        self.assertIn("iCloud užraktas", r["blocking"])
+        r = products.enrich("MacBook Air M1", "ekranas sudužęs, kitkas veikia")
+        self.assertTrue(r["defects"])
+        self.assertEqual(r["blocking"], [])
 
 
 class ObserveTest(unittest.TestCase):
@@ -193,6 +228,31 @@ class ObserveTest(unittest.TestCase):
                          [("pirkpard:1", 299.99, "LT")])
         self.assertEqual(sorted(e["why"] for e in ev if e["e"] == "px"), ["priedas", "salis (LV)"])
         self.assertIn("Apple produktai [Pirkpard: ipad]: gauta 3, nauju 1", out.getvalue())
+
+    def test_reads_description(self):
+        catalog = {"ipad": [], "macbook": [item(1, "MacBook Air 13", 400), item(2, "MacBook Pro 13 M1", 300),
+                                          item(3, "MacBook Air M2", 600)]}
+        pages = {"1": "M1 2020, 8GB RAM, 256GB SSD", "2": "iCloud užrakintas"}
+        statuses = {"3": (404, "")}
+        with TempDir():
+            _, log = run(catalog, pages=pages, statuses=statuses)
+            ev = [e for e in archive.read() if e["e"] in ("pobs", "px")]
+            pobs = [e for e in ev if e["e"] == "pobs"]
+            self.assertEqual([(e["id"], e["m"], e["ram"], e["st"], e["chip"]) for e in pobs],
+                             [("vinted:1", "MacBook Air M1 13", "8 GB", "256 GB", "M1")])
+            why = {e["id"]: e["why"] for e in ev if e["e"] == "px"}
+            self.assertTrue(why["vinted:2"].startswith("defektas"))
+            self.assertEqual(why["vinted:3"], "dingo pries atidarant")
+            self.assertIn("atidaryta skelbimu (aprasymui) 3", log)
+
+    def test_details_capped(self):
+        reset_config(HEARTBEAT_HOURS=0, PRODUCTS_OBSERVE=True, PRODUCT_QUERIES=["ipad"],
+                     SEARCH_QUERIES=["iPhone 13"], PRODUCT_DETAILS_PER_RUN=2)
+        catalog = {"ipad": [item(i, f"iPad Air 5 64GB nr {i}", 300) for i in range(1, 6)]}
+        with TempDir():
+            _, log = run(catalog)
+            self.assertEqual(sum(1 for e in archive.read() if e["e"] == "pobs"), 2)
+            self.assertIn("atidaryta skelbimu (aprasymui) 2, laukia aprasymo (kitam paleidimui) 3", log)
 
 if __name__ == "__main__":
     unittest.main()
