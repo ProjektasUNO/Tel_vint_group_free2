@@ -85,6 +85,9 @@ DEFAULTS = {
     # Grupes skiltis Apple produktams („Apple produkcija“). Kol kas tik rinkimas – siuntimas
     # bus ijungtas, kai susikaups kainu duomenu.
     "PRODUCTS_TOPIC_ID": "",
+    # Kiek pardavejo salies uzklausu per paleidima Apple produktams (is bendros
+    # SELLER_COUNTRY_LOOKUPS kvotos, ne papildomai). Atsakymai isimenami.
+    "PRODUCT_COUNTRY_LOOKUPS": 20,
     "SEARCH_QUERIES": [
         "iPhone 8", "iPhone 8 Plus", "iPhone X", "iPhone XR", "iPhone XS", "iPhone XS Max",
         "iPhone 11", "iPhone 11 Pro", "iPhone 11 Pro Max", "iPhone 12", "iPhone 12 mini",

@@ -141,7 +141,9 @@ class State:
         # Apple produktai (vinted/products.py): {uid: [kaina, pirma_diena, paskutine_diena]}
         # arba {uid: "x"} (atmestas – priedas/dalis/kopija). Kad archyve butu tik pirmas
         # pamatymas ir kainos pokyciai, o paieska sustotu ties jau matytais.
-        self.products = data.get("products") or {}
+        # v2 (2026-10-14): tik Lietuvos pardavejai. Pirmo rinkimo (be salies patikros)
+        # irasai pamirstami, kad tie skelbimai butu ivertinti is naujo.
+        self.products = (data.get("products") or {}) if data.get("products_v") == 2 else {}
         self.products_at = float(data.get("products_at") or 0)
 
     SELLER_MAX_ENTRIES = 20000
@@ -264,5 +266,6 @@ class State:
                 "source_zero": self.source_zero, "source_down": self.source_down,
                 "tracked": self.tracker.to_dict(), "last_report": self.last_report,
                 "detail_failures": self.detail_failures, "sellers": self.sellers,
-                "products": self._pruned_products(), "products_at": self.products_at}
+                "products": self._pruned_products(), "products_at": self.products_at,
+                "products_v": 2}
         write_json(path, data, ensure_ascii=False, separators=(",", ":"))

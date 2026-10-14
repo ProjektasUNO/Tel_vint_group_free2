@@ -69,10 +69,10 @@ class DetectTest(unittest.TestCase):
             self.assertIsNone(products.reject_reason(title), title)
 
 
-def run(catalog):
+def run(catalog, users=None):
     tg = FakeTelegram()
     with contextlib.redirect_stdout(io.StringIO()) as out:
-        Run(FakeClient(catalog), tg, sleep=lambda s: None).run()
+        Run(FakeClient(catalog, users=users), tg, sleep=lambda s: None).run()
     return tg, out.getvalue()
 
 
@@ -115,6 +115,41 @@ class ObserveTest(unittest.TestCase):
         with TempDir():
             _, log = run({"ipad": [item(1, "iPad Air 5 64GB", 300)]})
             self.assertNotIn("Apple produktai", log)
+
+    def test_only_lithuanian(self):
+        """Tik Lietuvos pardavejai: uzsienio kalba ir zlotu kainos (su centais) – be uzklausu,
+        uzsienio pardavejas – pagal salies uzklausa; salies nezinant neirasoma."""
+        catalog = {"ipad": [item(1, "iPad Air 5 64GB", 300, user_id=1),
+                            item(2, "Tablet iPad 9 generacji, świetny stan", 166),
+                            item(3, "iPad 9 64GB", 166.7, user_id=3),
+                            item(4, "iPad Pro 11 M1 128GB", 450, user_id=4)],
+                   "macbook": []}
+        with TempDir():
+            _, log = run(catalog, users={4: {"country_code": "LV"}})
+            ev = [e for e in archive.read() if e["e"] in ("pobs", "px")]
+            self.assertEqual([e["id"] for e in ev if e["e"] == "pobs"], ["vinted:1"])
+            self.assertEqual(next(e for e in ev if e["e"] == "pobs")["ct"], "LT")
+            why = {e["id"]: e["why"] for e in ev if e["e"] == "px"}
+            self.assertTrue(why["vinted:2"].startswith("kalba"))
+            self.assertEqual(why["vinted:3"], "uzsienio kaina (centai)")
+            self.assertEqual(why["vinted:4"], "salis (LV)")
+            self.assertIn("pardavejo salies uzklausu 2", log)
+
+    def test_unknown_country_waits(self):
+        reset_config(HEARTBEAT_HOURS=0, PRODUCTS_OBSERVE=True, PRODUCT_QUERIES=["ipad"],
+                     SEARCH_QUERIES=["iPhone 13"], SELLER_COUNTRY_LOOKUPS=0)
+        with TempDir():
+            _, log = run({"ipad": [item(1, "iPad Air 5 64GB", 300)]})
+            self.assertEqual([e for e in archive.read() if e["e"] in ("pobs", "px")], [])
+            self.assertIn("salis nezinoma (kitam paleidimui) 1", log)
+
+    def test_country_lookups_capped(self):
+        reset_config(HEARTBEAT_HOURS=0, PRODUCTS_OBSERVE=True, PRODUCT_QUERIES=["ipad"],
+                     SEARCH_QUERIES=["iPhone 13"], PRODUCT_COUNTRY_LOOKUPS=2)
+        catalog = {"ipad": [item(i, f"iPad Air 5 64GB nr {i}", 300, user_id=i) for i in range(1, 6)]}
+        with TempDir():
+            _, log = run(catalog)
+            self.assertIn("pardavejo salies uzklausu 2, salis nezinoma (kitam paleidimui) 3", log)
 
 
 if __name__ == "__main__":
