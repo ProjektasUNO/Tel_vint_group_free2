@@ -44,10 +44,28 @@ class DetectTest(unittest.TestCase):
         for title, why in {"MacBook pakrovėjas 61W": "priedas", "iPad Pro 11 dėklas": "priedas",
                            "Dėklas iPad Air": "priedas", "Magic Keyboard iPad Pro": "priedas",
                            "AirPods Pro 2 kopija": "kopija", "Kairys AirPods Pro ausinukas": "dalis",
-                           "MacBook Pro ekranas": "dalis"}.items():
+                           "MacBook Pro ekranas": "dalis",
+                           # lenkiski skelbimai (Vinted LT rodo ir juos)
+                           "Etui iPad Air 2": "priedas", "Etui na iPad": "priedas", "Pudełko AirPods": "dalis",
+                           "Szkło hartowane iPad Air 1/2 Benks Magic - NOWE-": "priedas",
+                           "Magnetyczna ładowarka do Ipad": "priedas",
+                           "Etui z klawiaturą Vobafe do iPad Pro 13” M4 (2024)": "priedas",
+                           "Płyta główna MacBook Pro 13": "dalis",
+                           "Imac baleriny": "ne technika", "Śniegowce IMAC": "ne technika",
+                           "Buty chłopięce na rzepy marki IMac": "ne technika",
+                           "Ballerina juhlakengät IMAC, koko 37": "ne technika"}.items():
             self.assertEqual(products.reject_reason(title), why, title)
         for title in ["MacBook Air M1 su dėklu", "iPad Pro 11 + Apple Pencil", "AirPods 2 originalūs, ne kopija",
-                      "iPad Air 4 64GB dėžutė yra", "AirPods Pro 2"]:
+                      "iPad Air 4 64GB dėžutė yra", "AirPods Pro 2",
+                      "Ipad air (4th Generation) + Apple Pencil (2nd Generation)", "AirPods Max słuchawki Apple zielone",
+                      "Apple MacBook Pro 13″ M1 | 16 GB RAM | 256 GB SSD | A2338 | Stan idealny + nowa",
+                      "21.5” Apple iMAC (2013), SSD 500gb, i5 2.7ghz, 8gb ram", "Apple Mac Mini M4 16Gb ram 256 GB",
+                      "Apple Ipad 9 generacja 2021 rok 64GB szary. Stan jak nowy brak wad bateria w bar",
+                      "Apple Mac mini M1 16 GB RAM 1 TB SSD – z pudełkiem",
+                      "MacBook Pro 15 Retina Mid 2015, i7, 16 GB RAM, ładowarka i pokrowiec",
+                      "Apple AirPods Pro 3 z etui ładującym (USB-C / MagSafe)",
+                      "MacBook Air M1 16/256 GB / bateria 93% / pudełko / zadbany",
+                      "Apple MacBook Pro 14\" z wyświetlaczem nanostrukturalnym, M5, 32 GB,1 TB SSD, 96W"]:
             self.assertIsNone(products.reject_reason(title), title)
 
 

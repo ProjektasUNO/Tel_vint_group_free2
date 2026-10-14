@@ -26,11 +26,17 @@ _ACCESSORY_RE = re.compile(
     r"kabel\w*|cable|laidas|laidai|klaviatur\w*|keyboard|pencil|piestuk\w*|stylus|plevel\w*|"
     r"stiklel\w*|screen protector|apsaugin\w*|sleeve|krepsel\w*|kuprin\w*|maisel\w*|stovel\w*|stovas|"
     r"stand|laikikl\w*|holder|dock\w*|hub|pele|mouse|trackpad|ear ?tips|antgal\w*|kamstel\w*|"
-    r"lipduk\w*|sticker\w*|skin)\b")
+    r"lipduk\w*|sticker\w*|skin|"
+    # lenkiskai (Vinted LT rodo ir PL skelbimus; fold() „ł“ nekeicia)
+    r"etui|pokrowi\w*|obudow\w*|futera[lł]\w*|[lł]adowar\w*|zasilacz\w*|klawiatur\w*|rysik\w*|"
+    r"szk[lł]o|hartowan\w*|foli[ae]|naklejk\w*|podstawk\w*|uchwyt\w*|torb[ae]|plecak\w*|"
+    r"myszk\w*|kabl\w*|przew[oó]d\w*|hulle|tasche|ladekabel|ladeger\w*)\b")
 _BUNDLE_RE = re.compile(r"\+|&|\b(?:su|with|ir|bei|kartu|plius|komplekt\w*|dovan\w*|pridedu|"
-                        r"pridedam\w*|gratis|included|iskaitant)\b")
+                        r"pridedam\w*|gratis|included|iskaitant|"
+                        # lenkiskai: „z pudełkiem“, „ładowarka i pokrowiec“, „komplet“
+                        r"z|ze|i|plus|komplet\w*|zestaw\w*|full box)\b")
 # Priedas TAM produktui: „skirtas iPad“, „for MacBook Air“, „tinka AirPods Pro“
-_FOR_PRODUCT_RE = re.compile(r"\b(?:for|skirt\w*|tinka|compatible|fur|pour)\s+(?:apple\s+)?"
+_FOR_PRODUCT_RE = re.compile(r"\b(?:for|skirt\w*|tinka|compatible|fur|pour|do|na)\s+(?:apple\s+)?"
                              r"(?:i ?pad|mac ?book|air ?pods?|imac|mac ?mini)")
 # Dalis, ne visas produktas
 _PART_RE = re.compile(
@@ -38,7 +44,10 @@ _PART_RE = re.compile(
     r"korpus\w*|motinin\w*|plokst\w*|logic board|motherboard|baterija|battery|"
     r"(?:vienas|viena|tik|kairys|kaire|desinys|desine|left|right|single|one)\s+(?:ausinuk\w*|earbud\w*|airpod\b)|"
     r"(?:kairys|kaire|desinys|desine|left|right)\s+(?:air ?pods?\s+)?(?:pro\s+)?(?:\d\s+)?ausinuk\w*|"
-    r"tik (?:dezut\w*|dekl\w*|pakrov\w*)|box only|empty box|tuscia dezute)\b")
+    r"tik (?:dezut\w*|dekl\w*|pakrov\w*)|box only|empty box|tuscia dezute|"
+    r"p[lł]yt\w* g[lł][oó]wn\w*|matryca|wy[sś]wietlacz|bateri[ai] do|uszkodz\w*|na cz[eę][sś]ci)\b"
+    # tik dezute lenkiskai („Pudełko AirPods“); „… / pudełko /“ – dezute pridedama
+    r"|(?:^|\b(?:tylko|samo) )pude[lł]k\w*")
 # Kopijos / replikos (ypac AirPods)
 _FAKE_RE = re.compile(r"(?<!\bne )\b(?:kopij\w*|replik\w*|replica|clone|klon\w*|fake|high copy|"
                       r"aaa|master copy|1\s?:\s?1|ne originali\w*|neoriginal\w*)\b")
@@ -211,9 +220,17 @@ def detect(title):
             "ram": extract_ram(title) if computer else None}
 
 
+# Ne technika: „IMAC“ yra ir batu prekes zenklas
+_NOT_TECH_RE = re.compile(r"\b(?:batai|bateliai|basutes|buty|baleriny|[sś]niegowce|kozaki|sanda[lł]\w*|"
+                          r"trzewiki|klapki|shoes|sneakers|sneakersy|boots|schuhe|kenga\w*|kengat|lenkkar\w*|"
+                          r"kosmetin\w*)\b|kengat\b")
+
+
 def reject_reason(title):
-    """Kodel skelbimas netinka rinkos kainai: 'priedas', 'dalis', 'kopija' arba None."""
+    """Kodel skelbimas netinka rinkos kainai: 'ne technika', 'priedas', 'dalis', 'kopija' arba None."""
     t = _norm(title)
+    if _NOT_TECH_RE.search(t):
+        return "ne technika"
     if _FAKE_RE.search(t):
         return "kopija"
     if _PART_RE.search(t):
