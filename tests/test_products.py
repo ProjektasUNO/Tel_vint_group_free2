@@ -59,7 +59,8 @@ class DetectTest(unittest.TestCase):
                            "Etui z klawiaturą Vobafe do iPad Pro 13” M4 (2024)": "priedas",
                            "Płyta główna MacBook Pro 13": "dalis",
                            "Imac baleriny": "ne technika", "Śniegowce IMAC": "ne technika",
-                           "Buty chłopięce na rzepy marki IMac": "ne technika",
+                           "Buty chłopięce na rzepy marki IMac": "ne technika", "UAG Plyo -kotelo MacBook Pro 13\" (M1/M2)": "priedas",
+                           "Ipad suojakalvo": "priedas",
                            "Ballerina juhlakengät IMAC, koko 37": "ne technika"}.items():
             self.assertEqual(products.reject_reason(title), why, title)
         for title in ["MacBook Air M1 su dėklu", "iPad Pro 11 + Apple Pencil", "AirPods 2 originalūs, ne kopija",

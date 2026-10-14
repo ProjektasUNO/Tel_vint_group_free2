@@ -30,7 +30,9 @@ _ACCESSORY_RE = re.compile(
     # lenkiskai (Vinted LT rodo ir PL skelbimus; fold() „ł“ nekeicia)
     r"etui|pokrowi\w*|obudow\w*|futera[lł]\w*|[lł]adowar\w*|zasilacz\w*|klawiatur\w*|rysik\w*|"
     r"szk[lł]o|hartowan\w*|foli[ae]|naklejk\w*|podstawk\w*|uchwyt\w*|torb[ae]|plecak\w*|"
-    r"myszk\w*|kabl\w*|przew[oó]d\w*|hulle|tasche|ladekabel|ladeger\w*)\b")
+    r"myszk\w*|kabl\w*|przew[oó]d\w*|hulle|tasche|ladekabel|ladeger\w*|"
+    # suomiskai / estiskai (dekliai, apsaugos)
+    r"\w*kotelo\w*|suojakuori\w*|suojakalvo\w*|kuulokesuoja\w*|kaaned?|umbris)\b")
 _BUNDLE_RE = re.compile(r"\+|&|\b(?:su|with|ir|bei|kartu|plius|komplekt\w*|dovan\w*|pridedu|"
                         r"pridedam\w*|gratis|included|iskaitant|"
                         # lenkiskai: „z pudełkiem“, „ładowarka i pokrowiec“, „komplet“
