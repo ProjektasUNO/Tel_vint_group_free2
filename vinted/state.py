@@ -143,7 +143,11 @@ class State:
         # pamatymas ir kainos pokyciai, o paieska sustotu ties jau matytais.
         # v3 (2026-10-14): tik Lietuvos pardavejai ir su aprasymu (procesorius, RAM, diskas).
         # Senesni irasai pamirstami, kad tie skelbimai butu ivertinti is naujo.
-        self.products = (data.get("products") or {}) if data.get("products_v") == 3 else {}
+        products, v = data.get("products") or {}, data.get("products_v")
+        if v == 3:
+            # v4: anglu kalba leidziama – v3 atmestieji (tarp ju „kalba (EN)“) vertinami is naujo
+            products = {k: x for k, x in products.items() if x != "x"}
+        self.products = products if v in (3, 4) else {}
         self.products_at = float(data.get("products_at") or 0)
 
     SELLER_MAX_ENTRIES = 20000
@@ -267,5 +271,5 @@ class State:
                 "tracked": self.tracker.to_dict(), "last_report": self.last_report,
                 "detail_failures": self.detail_failures, "sellers": self.sellers,
                 "products": self._pruned_products(), "products_at": self.products_at,
-                "products_v": 3}
+                "products_v": 4}
         write_json(path, data, ensure_ascii=False, separators=(",", ":"))

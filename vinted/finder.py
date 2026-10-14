@@ -1254,6 +1254,12 @@ class Run:
         opened = waiting_desc = 0
         descs = {}                                  # {uid: aprasymas} siam paleidimui
 
+        def foreign(title):
+            """Uzsienio kalba – bet ne leidziama (ALLOWED_LANGUAGES: LT, EN – lietuviai
+            neretai raso angliskai). Kaip ir telefonams."""
+            lang = detect_foreign_language(title)
+            return lang if lang and lang not in config.allowed_languages() else None
+
         def converted(source, price):
             # Tik Vinted'e kainos perskaiciuojamos is kitu valiutu (zr. util.looks_converted)
             return source.name == "vinted" and looks_converted(price)
@@ -1273,7 +1279,7 @@ class Run:
                 for x in listings:
                     if x.uid in known or x.price is None or products.detect(x.title) is None:
                         continue
-                    if products.reject_reason(x.title) or detect_foreign_language(x.title) or \
+                    if products.reject_reason(x.title) or foreign(x.title) or \
                             converted(source, x.price) or not c["FILTER_BY_COUNTRY"]:
                         continue                    # sprendziama zemiau, be salies uzklausos
                     key = f"{x.source}:{x.seller_id}"
@@ -1317,7 +1323,7 @@ class Run:
                             continue
                         old = known.get(x.uid)
                         if old is None:
-                            lang = detect_foreign_language(x.title)
+                            lang = foreign(x.title)
                             country = (x.seller or {}).get("country")
                             why = (products.reject_reason(x.title)
                                    or (f"kalba ({lang})" if lang else None)

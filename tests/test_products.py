@@ -193,6 +193,22 @@ class ObserveTest(unittest.TestCase):
             self.assertEqual(why["vinted:4"], "salis (LV)")
             self.assertIn("pardavejo salies uzklausu 2", log)
 
+    def test_english_allowed(self):
+        """Lietuviai neretai raso angliskai – EN leidziama (salis vis tiek tikrinama)."""
+        catalog = {"ipad": [], "macbook": [item(1, "MacBook Air M1 8GB 256GB space gray, like new", 450)]}
+        with TempDir():
+            run(catalog)
+            self.assertEqual([e["id"] for e in archive.read() if e["e"] == "pobs"], ["vinted:1"])
+
+    def test_v3_rejections_reconsidered(self):
+        from vinted.state import write_json
+        with TempDir():
+            write_json("state.json", {"products": {"vinted:1": [400, 1, 1], "vinted:2": "x"}, "products_v": 3})
+            st = State.load()
+            self.assertEqual(st.products, {"vinted:1": [400, 1, 1]})
+            write_json("state.json", {"products": {"vinted:1": [400, 1, 1]}, "products_v": 2})
+            self.assertEqual(State.load().products, {})
+
     def test_shop_style_cents_kept(self):
         catalog = {"ipad": [item(1, "iPad Air 5 64GB", 299.99), item(2, "iPad 9 64GB", 182.5),
                             item(3, "iPad Pro 11 M1", 532.28)], "macbook": []}
