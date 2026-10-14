@@ -135,6 +135,15 @@ class ObserveTest(unittest.TestCase):
             self.assertEqual(why["vinted:4"], "salis (LV)")
             self.assertIn("pardavejo salies uzklausu 2", log)
 
+    def test_shop_style_cents_kept(self):
+        catalog = {"ipad": [item(1, "iPad Air 5 64GB", 299.99), item(2, "iPad 9 64GB", 182.5),
+                            item(3, "iPad Pro 11 M1", 532.28)], "macbook": []}
+        with TempDir():
+            run(catalog)
+            ev = [e for e in archive.read() if e["e"] in ("pobs", "px")]
+            self.assertEqual(sorted(e["id"] for e in ev if e["e"] == "pobs"), ["vinted:1", "vinted:2"])
+            self.assertEqual([e["why"] for e in ev if e["e"] == "px"], ["uzsienio kaina (centai)"])
+
     def test_unknown_country_waits(self):
         reset_config(HEARTBEAT_HOURS=0, PRODUCTS_OBSERVE=True, PRODUCT_QUERIES=["ipad"],
                      SEARCH_QUERIES=["iPhone 13"], SELLER_COUNTRY_LOOKUPS=0)

@@ -1252,8 +1252,13 @@ class Run:
         asked_total = unknown_total = 0
 
         def converted(source, price):
-            # Zloto perskaiciavimas Vinted'e duoda centus; lietuviai kainas raso apvalias
-            return source.name == "vinted" and abs(price - round(price)) > 0.004
+            """Zloto perskaiciavimas Vinted'e duoda atsitiktinius centus (532.28). Lietuviai
+            kainas raso apvalias arba „parduotuvines“: x.50, x.90, x.95, x.99, x.49 – tokios
+            paliekamos (gyvai: is 326 LT telefonu 5 buvo su centais, pvz. 182.5, 219.99)."""
+            if source.name != "vinted":
+                return False
+            cents = round(price * 100) % 100
+            return cents not in (0, 49, 50, 90, 95, 99)
 
         for source in sources:
             mine = [k for k in known if k.startswith(source.name + ":")]
