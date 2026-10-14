@@ -1,0 +1,53 @@
+name: Telegram bandymas
+
+# Tik rankinis paleidimas (Actions -> Telegram bandymas -> Run workflow).
+# Issiuncia po viena bandomaji pranesima i iPhone ir Android skiltis, kad butu
+# matyti, ar BOT/TEL Secrets ir TOPIC_BY_BRAND nukreipia ten, kur reikia.
+# Vinted neliecia, busenos nekeicia.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Idiegti bibliotekas
+        run: pip install -r requirements.txt
+
+      - name: Siusti bandomuosius pranesimus
+        env:
+          BOT_TOKEN: ${{ secrets.BOT }}
+          CHAT_ID: ${{ secrets.TEL }}
+          CHAT_TOPIC_ID: ${{ secrets.TOPIC_IPHONE }}
+        run: |
+          python - <<'PY'
+          import sys
+          from vinted import config
+          from vinted.telegram import Telegram
+          config.load()
+          if not config.BOT_TOKEN or not config.CHAT_ID:
+              sys.exit("Nenurodyti Secrets BOT / TEL")
+          tg = Telegram()
+          ok = True
+          for brand, name in (("apple", "iPhone"), ("samsung", "Android")):
+              text = (f"🧪 <b>Bandomasis pranešimas</b> ({name} skiltis)\n"
+                      "Tikriname, ar pasiūlymai ateina į tinkamą vietą. Tai ne skelbimas.")
+              sent = tg.send_message(text, silent=True, brand=brand)
+              print(f"{name}: {'issiusta' if sent else 'NEPAVYKO'} (skiltis: {tg.topic_for(brand) or 'bendra'})")
+              ok = ok and sent
+          sys.exit(0 if ok else 1)
+          PY
