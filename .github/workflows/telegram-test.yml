@@ -49,5 +49,13 @@ jobs:
               sent = tg.send_message(text, silent=True, brand=brand)
               print(f"{name}: {'issiusta' if sent else 'NEPAVYKO'} (skiltis: {tg.topic_for(brand) or 'bendra'})")
               ok = ok and sent
+          topic = str(config.cfg.get("PRODUCTS_TOPIC_ID") or "").strip()
+          if topic:
+              sent = Telegram(topic_id=topic).send_message(
+                  "🧪 <b>Bandomasis pranešimas</b> (Apple produkcija)\n"
+                  "Čia bus iPad, MacBook, AirPods, iMac ir Mac mini pasiūlymai. Tai ne skelbimas.",
+                  silent=True)
+              print(f"Apple produkcija: {'issiusta' if sent else 'NEPAVYKO'} (skiltis: {topic})")
+              ok = ok and sent
           sys.exit(0 if ok else 1)
           PY

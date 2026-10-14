@@ -82,6 +82,9 @@ DEFAULTS = {
     "PRODUCT_QUERIES": ["ipad", "macbook", "airpods", "imac", "mac mini"],
     "PRODUCT_PAGES": 2,              # iprastai sustoja jau 1-ame (visi matyti)
     "PRODUCTS_EVERY_MINUTES": 15,    # ne dazniau nei kas tiek minuciu
+    # Grupes skiltis Apple produktams („Apple produkcija“). Kol kas tik rinkimas – siuntimas
+    # bus ijungtas, kai susikaups kainu duomenu.
+    "PRODUCTS_TOPIC_ID": "",
     "SEARCH_QUERIES": [
         "iPhone 8", "iPhone 8 Plus", "iPhone X", "iPhone XR", "iPhone XS", "iPhone XS Max",
         "iPhone 11", "iPhone 11 Pro", "iPhone 11 Pro Max", "iPhone 12", "iPhone 12 mini",
