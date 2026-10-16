@@ -345,6 +345,14 @@ DEFECT_PATTERNS = [
     (r"sugad\w*|sugedes|sugedo", "sugedęs", 0.55),
     (r"damaged|water damage|sulyt\w*|pasemt\w*|dregm\w*", "pažeistas", 0.60),
     (r"no face ?id|be face ?id|face ?id neveik\w*|neveik\w* face ?id", "neveikia Face ID", 0.75),
+    # Kameros defektai: „kameroje yra ruda dėmė“ (2026-10-16 nusiųsta kaip tvarkingas), dulkės, nefokusuoja,
+    # įskilęs kameros stikliukas. „jokių dėmių kameroje“, „kamera be dėmių“ – ne.
+    (r"kamer\w* (?:\w+ ){0,3}(?:dem\w*|dulk\w*|taskel\w*|nefokus\w*|neryski\w*|susiliej\w*|"
+     r"(?:su|i)?skil\w*|dauzt\w*|sudauz\w*|duz\w*|ibrez\w*|subraiz\w*|drebanc\w*|dreba|vibruoj\w*)|"
+     r"(?:dem\w*|dulk\w*|taskel\w*) (?:\w+ ){0,3}kamer\w*|"
+     r"camera (?:\w+ ){0,2}(?:spot|stain|dust|blur\w*|not focus\w*|cracked|broken|shak\w*)|"
+     r"(?:spot|stain|dust)\w* (?:in|on) (?:the )?(?:\w+ )?(?:camera|lens)|cracked lens",
+     "kameros defektas", 0.75),
     (r"neveik\w*|not working|doesn.?t work", "kažkas neveikia", 0.70),
     (r"keist\w* ekran\w*|replaced screen|neoriginal\w* ekran\w*|ne originalus ekranas", "keistas ekranas", 0.85),
     # „tik su baterija problema“, „baterija silpna“, „greit sėda“ (2026-10-14: iPhone 12 su „baterija

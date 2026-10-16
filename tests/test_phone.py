@@ -135,6 +135,16 @@ class DefectTest(unittest.TestCase):
         self.assertEqual(estimate_value(120, None, 70, bad), estimate_value(120, None, None, bad))
         self.assertTrue(20 <= BATTERY_SWAP_COST <= 30)
 
+    def test_camera_defect(self):
+        """2026-10-16: telefonas su „kameroje yra ruda dėmė“ nusiųstas kaip tvarkingas."""
+        for text in ["kameroje yra ruda dėmė", "Kameroje ruda dėmė, nuotraukoms netrukdo", "dėmė kameroje",
+                     "dulkės kameroje", "kamera nefokusuoja", "kameros stikliukas įskilęs",
+                     "galinė kamera dėmėta", "camera spot", "dust in the camera", "cracked lens"]:
+            self.assertIn("kameros defektas", self.labels(text), text)
+        for text in ["kamera puiki, jokių dėmių", "jokių dėmių kameroje", "kamera be dėmių",
+                     "kamera veikia puikiai", "kameros apsauga uždėta", "be dulkių kameroje"]:
+            self.assertNotIn("kameros defektas", self.labels(text), text)
+
     def test_sim_lock(self):
         """2026-10-10: iPhone su SIM užraktu nusiųstas kaip deal'as (-50 %)."""
         for text in ["SIM užraktas", "Telefonas turi sim užraktą", "parduodu su SIM užraktu", "Sim uzraktas",
