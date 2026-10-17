@@ -78,7 +78,8 @@
   "MIN_CONDITION": "Gera",
   "ALLOWED_DEFECTS": [
     "įbrėžimai",
-    "baterijos problema"
+    "baterijos problema",
+    "USA / tik eSIM"
   ],
   "MARKET_PRICES": {},
   "USE_SOLD_PRICES": true,

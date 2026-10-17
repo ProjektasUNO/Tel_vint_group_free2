@@ -133,7 +133,7 @@ DEFAULTS = {
     "MIN_CONDITION": "Gera",         # blogiausia leidziama bukle: "Labai gera" / "Gera" / "Patenkinama"
     # kurie defektai leidziami, kai TIDY_ONLY. „baterijos problema“ – verte su keitimo kaina
     # (phone.BATTERY_SWAP_COST), keitimas pačiam ~20–30 €.
-    "ALLOWED_DEFECTS": ["įbrėžimai", "baterijos problema"],
+    "ALLOWED_DEFECTS": ["įbrėžimai", "baterijos problema", "USA / tik eSIM"],
 
     # --- Rinkos kaina ---
     "MARKET_PRICES": {},             # rankines kainos: {"13": 180, "13|256 GB": 210}

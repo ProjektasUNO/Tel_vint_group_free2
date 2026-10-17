@@ -145,6 +145,18 @@ class DefectTest(unittest.TestCase):
                      "kamera veikia puikiai", "kameros apsauga uždėta", "be dulkių kameroje"]:
             self.assertNotIn("kameros defektas", self.labels(text), text)
 
+    def test_usa_esim(self):
+        """2026-10-17: iPhone 14 Pro Max „USA, tik eSIM“ – mažiau pirkėjų, vertė x0.85, ne atmetama."""
+        for text in ["iPhone 14 Pro Max USA", "tik eSIM", "Tik e-sim", "eSIM only", "USA versija, tik esim",
+                     "amerikietiškas modelis", "pirktas JAV", "US version", "be SIM lizdo", "SIM lizdo nėra",
+                     "no physical sim tray", "USA unlocked", "LL/A modelis"]:
+            self.assertIn("USA / tik eSIM", self.labels(text), text)
+        for text in ["palaiko eSIM", "eSIM ir SIM kortelė", "iPhone 14 Pro Max 128GB", "pirktas Lietuvoje",
+                     "naudotas pusę metų", "su dėkliuku", "Telia eSIM veikia"]:
+            self.assertNotIn("USA / tik eSIM", self.labels(text), text)
+        f = dict(find_defects("USA, tik eSIM"))["USA / tik eSIM"]
+        self.assertTrue(0 < f < 1)
+
     def test_sim_lock(self):
         """2026-10-10: iPhone su SIM užraktu nusiųstas kaip deal'as (-50 %)."""
         for text in ["SIM užraktas", "Telefonas turi sim užraktą", "parduodu su SIM užraktu", "Sim uzraktas",

@@ -354,6 +354,13 @@ DEFECT_PATTERNS = [
      r"(?:spot|stain|dust)\w* (?:in|on) (?:the )?(?:\w+ )?(?:camera|lens)|cracked lens",
      "kameros defektas", 0.75),
     (r"neveik\w*|not working|doesn.?t work", "kažkas neveikia", 0.70),
+    # USA versija: nuo iPhone 14 – tik eSIM (be SIM lizdo), maziau pirkeju, daznai operatoriaus
+    # uzraktas (2026-10-17: 14 Pro Max „USA, tik eSIM“). Ne atmetama, o pigiau: x0.85.
+    # „palaiko eSIM“ – ne (ES telefonai turi ir lizda). „USA unlocked“ – vis tiek USA (zr. _KEEP_AFTER).
+    (r"tik e-?sim\w*|e-?sim only|only e-?sim|e-?sim versij\w*|"
+     r"(?:be|nera|neturi|no|without) (?:fizin\w* |physical )?sim (?:lizd\w*|kortel\w* lizd\w*|stalciuk\w*|tray|slot)|sim (?:kortel\w* )?lizd\w* (?:\w+ )?nera|"
+     r"usa\b|jav\b|amerik\w*|us (?:versij\w*|version|model\w*)|ll ?/ ?a\b",
+     "USA / tik eSIM", 0.85),
     (r"keist\w* ekran\w*|replaced screen|neoriginal\w* ekran\w*|ne originalus ekranas", "keistas ekranas", 0.85),
     # „tik su baterija problema“, „baterija silpna“, „greit sėda“ (2026-10-14: iPhone 12 su „baterija
     # problema“ nusiųstas kaip veikiantis). Keitimas pačiam – ~20–30 €: vertė skaičiuojama kaip su
@@ -372,7 +379,9 @@ DEFECT_PATTERNS = [
 _DEFECT_RE = [(re.compile(r"\b(?:" + p + r")"), label, f) for p, label, f in DEFECT_PATTERNS]
 _NE_IS_DEFECT = {"mokėjimas ne per Vinted", "kažkas neveikia", "neveikia Face ID", "neįsijungia / nesikrauna", "netestuotas",
                  "užrakintas kodu", "ekrano gedimas", "neaiški kilmė", "be baterijos"}
-_NEGATION_IS_DEFECT = {"be baterijos"}
+_NEGATION_IS_DEFECT = {"be baterijos", "USA / tik eSIM"}
+# Zodziai po jo defekto nepaneigia: „USA unlocked“, „SIM lizdo nėra“
+_KEEP_AFTER = {"USA / tik eSIM"}
 # Neiginiai PRIES defekta: „be įskilimų“, „nebuvo daužtas“, „niekada nebuvo taisytas“
 _NEGATE_BEFORE = {"be", "nera", "no", "not", "without", "jokiu", "jokio", "nieko", "neturi", "zero", "0",
                   "nebuvo", "niekada", "niekad", "nei", "never", "nebus"}
@@ -428,7 +437,7 @@ def find_defects(*texts):
             else:
                 if label in _CRACK_LABELS and any(w.startswith(_PROTECTOR_STEMS) for w in before_list):
                     continue
-                if after & _NEGATE_AFTER:
+                if after & _NEGATE_AFTER and label not in _KEEP_AFTER:
                     continue
             # "nesudaužytas", "neskilęs" = paneigimas; bet "neveikia", "neįsijungia" – pats defektas
             if label not in _NE_IS_DEFECT and t[m.start():m.end()].startswith("ne"):
