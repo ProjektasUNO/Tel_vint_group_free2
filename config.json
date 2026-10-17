@@ -1,7 +1,6 @@
 {
   "SOURCES": [
-    "vinted",
-    "pirkpard"
+    "vinted"
   ],
   "PARALLEL_SOURCES": true,
   "VINTED_BROWSE_ALL": true,
