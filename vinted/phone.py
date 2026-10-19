@@ -227,6 +227,11 @@ DESCRIPTION_NOT_PHONE_RE = re.compile(
     r"a4 lapas|a4 formato|lap\w* su (siais |tokiais )?vaizdais|siuntoje (rasite|gausite) tik|"
     r"gausite tik (lapa|lapas|nuotrauk\w*|foto|spaudin\w*|popieri\w*)|"
     r"parduodam\w* tik (lapa|lapas|lapelis|nuotrauk\w*|foto|spaudin\w*|popieri\w*|aprasym\w*)|"
+    # „čia tik paveikslėlis“, „tai tik nuotrauka“, „parduodu paveiksliuką“ (2026-10-19: iPhone 14 nusiųstas,
+    # nors aprašyme „čia tik paveikslėlis“ – buvo tik paveiksl(as|ai|...), be mažybinių formų)
+    r"(?:tik|tai|cia|parduodu|parduodam\w*|perkate|gausite) (?:yra |tik |tiktai )*"
+    r"(?:paveiksl\w*|nuotrauk(?:a|os)\b|foto\b|atvaizd\w*)|"
+    r"(?:only|just) (?:a |the )?(?:picture|photo|image)\b|"
     r"tik (popieri\w* )?lapas|tik lapelis|spausdint\w* (lapas|nuotrauk\w*)|popieri\w* lapas|"
     r"sheet of paper|printed (photo|picture|paper)|you are buying (a )?(photo|picture|paper|sheet)|"
     r"not the phone|nera telefonas)"

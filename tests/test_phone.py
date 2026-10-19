@@ -31,6 +31,15 @@ class ModelTest(unittest.TestCase):
         self.assertEqual(detect_model("iPhone 13, naudotas 11 mėn"), "13")
         self.assertEqual(detect_model("iPhone 11 Pro 64GB iOS 17"), "11 Pro")
 
+    def test_description_picture_only(self):
+        """2026-10-19: iPhone 14 nusiųstas, nors aprašyme „čia tik paveikslėlis“."""
+        for text in ["Čia tik paveikslėlis", "tai tik paveiksliukas", "Parduodu paveikslėlį su iPhone 14",
+                     "tai tik nuotrauka", "perkate tik foto", "only a picture", "just the photo"]:
+            self.assertTrue(description_not_phone(text), text)
+        for text in ["Paveikslėlyje matosi nedidelis įbrėžimas", "daugiau nuotraukų atsiųsiu", "nuotraukos tikros",
+                     "Telefonas kaip nuotraukose", "foto kokybė puiki", "kamera daro puikias nuotraukas"]:
+            self.assertFalse(description_not_phone(text), text)
+
     def test_description_not_phone(self):
         from vinted.phone import description_not_phone, min_price
         self.assertTrue(description_not_phone("TUŠČIOS DĖŽUTĖS EMPTY BOX KAINA GALUTINĖ"))
