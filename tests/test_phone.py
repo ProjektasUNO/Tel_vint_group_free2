@@ -148,6 +148,8 @@ class DefectTest(unittest.TestCase):
         """2026-10-16: telefonas su „kameroje yra ruda dėmė“ nusiųstas kaip tvarkingas."""
         for text in ["kameroje yra ruda dėmė", "Kameroje ruda dėmė, nuotraukoms netrukdo", "dėmė kameroje",
                      "dulkės kameroje", "kamera nefokusuoja", "kameros stikliukas įskilęs",
+                     "telefono kameros stikliukas vienas iškritęs ir suskilęs vienos tačiau jokių problemų su "
+                     "fotkinimu nėra", "kameros stikliukas iškritęs",
                      "galinė kamera dėmėta", "camera spot", "dust in the camera", "cracked lens"]:
             self.assertIn("kameros defektas", self.labels(text), text)
         for text in ["kamera puiki, jokių dėmių", "jokių dėmių kameroje", "kamera be dėmių",

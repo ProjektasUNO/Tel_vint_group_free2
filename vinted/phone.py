@@ -352,7 +352,9 @@ DEFECT_PATTERNS = [
     (r"no face ?id|be face ?id|face ?id neveik\w*|neveik\w* face ?id", "neveikia Face ID", 0.75),
     # Kameros defektai: „kameroje yra ruda dėmė“ (2026-10-16 nusiųsta kaip tvarkingas), dulkės, nefokusuoja,
     # įskilęs kameros stikliukas. „jokių dėmių kameroje“, „kamera be dėmių“ – ne.
-    (r"kamer\w* (?:\w+ ){0,3}(?:dem\w*|dulk\w*|taskel\w*|nefokus\w*|neryski\w*|susiliej\w*|"
+    # 2026-10-20: „kameros stikliukas vienas iškritęs ir suskilęs“ – 4 žodžiai tarp, ir „stikliukas“
+    # buvo palaikytas apsauginiu stikliuku (skilo apsauga) – todėl iki 5 žodžių ir „iškritęs“.
+    (r"kamer\w* (?:\w+ ){0,5}(?:dem\w*|dulk\w*|taskel\w*|nefokus\w*|neryski\w*|susiliej\w*|iskrit\w*|"
      r"(?:su|i)?skil\w*|dauzt\w*|sudauz\w*|duz\w*|ibrez\w*|subraiz\w*|drebanc\w*|dreba|vibruoj\w*)|"
      r"(?:dem\w*|dulk\w*|taskel\w*) (?:\w+ ){0,3}kamer\w*|"
      r"camera (?:\w+ ){0,2}(?:spot|stain|dust|blur\w*|not focus\w*|cracked|broken|shak\w*)|"
@@ -440,7 +442,8 @@ def find_defects(*texts):
                                        or after & _NEGATE_AFTER):
                     continue
             else:
-                if label in _CRACK_LABELS and any(w.startswith(_PROTECTOR_STEMS) for w in before_list):
+                if (label in _CRACK_LABELS and any(w.startswith(_PROTECTOR_STEMS) for w in before_list)
+                        and not any(w.startswith("kamer") for w in _words(clause))):
                     continue
                 if after & _NEGATE_AFTER and label not in _KEEP_AFTER:
                     continue
