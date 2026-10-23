@@ -1281,7 +1281,7 @@ class Run:
                 for x in listings:
                     if x.uid in known or x.price is None or products.detect(x.title) is None:
                         continue
-                    if products.reject_reason(x.title) or foreign(x.title) or \
+                    if products.reject_reason(x.title, x.price) or foreign(x.title) or \
                             converted(source, x.price) or not c["FILTER_BY_COUNTRY"]:
                         continue                    # sprendziama zemiau, be salies uzklausos
                     key = f"{x.source}:{x.seller_id}"
@@ -1327,7 +1327,7 @@ class Run:
                         if old is None:
                             lang = foreign(x.title)
                             country = (x.seller or {}).get("country")
-                            why = (products.reject_reason(x.title)
+                            why = (products.reject_reason(x.title, x.price)
                                    or (f"kalba ({lang})" if lang else None)
                                    or ("uzsienio kaina (centai)" if converted(source, x.price) else None)
                                    or (f"salis ({country})" if country and country not in allowed else None))

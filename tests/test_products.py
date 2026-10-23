@@ -85,6 +85,35 @@ def run(catalog, users=None, pages=None, statuses=None):
     return tg, out.getvalue()
 
 
+class Collected20261023Test(unittest.TestCase):
+    """2026-10-23: rinkime LT tarp Apple produktų – dėklai, batai „IMAC“, žaislai, dėžutės, kopijos už 5 €."""
+
+    def test_rejected(self):
+        from vinted.products import reject_reason
+        cases = {
+            "Mielas permatomas AirPods dėkliukas su karvutės raštu ir pakabuku": "priedas",
+            "iPad 9th / 8th / 7th gen dėklas su Bluetooth klaviatūra (10.2\")": "priedas",
+            "Macbook deklas su priedais": "priedas", "Mac Mini Hub & Stand": "priedas",
+            "Burga Airpods gen 1 & 2 dėklas": "priedas", "Apple AirPods Pro 2 ikroviklis": "priedas",
+            "Apple airpods pro dezute": "priedas", "MacBook Air dėžutė": "priedas", "IPad įdėkliukas": "priedas",
+            "Apple IMac power cord": "priedas", "Imac aulinukai": "ne technika", "IMAC 37 oda": "ne technika",
+            "IMAC narvas graužikams": "ne technika", "Žaislinis ipad": "ne technika",
+        }
+        for title, why in cases.items():
+            self.assertEqual(reject_reason(title, 20), why, title)
+        self.assertEqual(reject_reason("AirPods pro 3", 5), "per pigu")
+        self.assertEqual(reject_reason("Apple iPad 2 64gb", 8), "per pigu")
+
+    def test_kept(self):
+        from vinted.products import reject_reason
+        for title, price in [("AirPods Pro 3", 120), ("AirPods Pro 2 su dėklu", 80), ("AirPods Pro 2 + dėžutė", 70),
+                             ("iPad Air 5 su klaviatūra", 300), ("MacBook Air M1 su pakrovėju ir dėklu", 450),
+                             ("iMac 24 M1", 600), ("Mac mini M2", 400), ("AirPods 2nd generation", 25),
+                             ("MacBook Pro 13 2015", 150)]:
+            self.assertIsNone(reject_reason(title, price), title)
+        self.assertIsNone(reject_reason("AirPods pro 3"))         # be kainos – kaina netikrinama
+
+
 class EnrichTest(unittest.TestCase):
     def test_description_fills_gaps(self):
         r = products.enrich("MacBook Air 13", "2020 m. M1 procesorius, 8GB RAM, 256GB SSD. Baterija 92%.")

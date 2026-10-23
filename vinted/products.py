@@ -27,6 +27,9 @@ _ACCESSORY_RE = re.compile(
     r"stiklel\w*|screen protector|apsaugin\w*|sleeve|krepsel\w*|kuprin\w*|maisel\w*|stovel\w*|stovas|"
     r"stand|laikikl\w*|holder|dock\w*|hub|pele|mouse|trackpad|ear ?tips|antgal\w*|kamstel\w*|"
     r"lipduk\w*|sticker\w*|skin|"
+    # 2026-10-23 rinkime: „įkroviklis“, „įdėkliukas“, dėžutė be produkto („Apple AirPods Pro dėžutė“,
+    # „MacBook Air dėžutė“), dėklų prekės ženklas Burga, „power cord“, klavišai
+    r"i?krovikl\w*|idekl\w*|(?:dezut|dezuc)\w*(?!\s+(?:yra|pridedam\w*|originali\w*|irgi|taip pat))|burga|power cord|cord|buttons?|"
     # lenkiskai (Vinted LT rodo ir PL skelbimus; fold() „ł“ nekeicia)
     r"etui|pokrowi\w*|obudow\w*|futera[lł]\w*|[lł]adowar\w*|zasilacz\w*|klawiatur\w*|rysik\w*|"
     r"szk[lł]o|hartowan\w*|foli[ae]|naklejk\w*|podstawk\w*|uchwyt\w*|torb[ae]|plecak\w*|"
@@ -308,7 +311,9 @@ def enrich(title, description=""):
 # Ne technika: „IMAC“ yra ir batu prekes zenklas
 _NOT_TECH_RE = re.compile(r"\b(?:batai|bateliai|basutes|buty|baleriny|[sś]niegowce|kozaki|sanda[lł]\w*|"
                           r"trzewiki|klapki|shoes|sneakers|sneakersy|boots|schuhe|kenga\w*|kengat|lenkkar\w*|"
-                          r"kosmetin\w*)\b|kengat\b")
+                          r"kosmetin\w*|"
+                          # „IMAC aulinukai“, „IMAC 37 oda“, „IMAC narvas graužikams“, „Žaislinis iPad“
+                          r"aulinuk\w*|zomsin\w*|oda|odos|narv\w*|grauzik\w*|zaisl\w*)\b|kengat\b")
 
 
 # Ne pardavimas, o pirkimas: „Superku MacBook“, „Perku iPad“, „Ieškau AirPods“
@@ -316,7 +321,13 @@ _WANTED_RE = re.compile(r"\b(?:superku|supirk\w*|perku|pirksiu|ieskau|ieskom\w*|
                         r"buying|wanted|wtb)\b")
 
 
-def reject_reason(title):
+_ACCESSORY_AND_RE = re.compile(_ACCESSORY_RE.pattern + r"\s*(?:\b(?:su|with|z|ze)\b|&)")
+
+# Žemiau – ne veikiantis produktas, o dalis / apgavystė / klaida (2026-10-23: „AirPods Pro 3“ už 5 €)
+MIN_PRICES = {"airpods": 15, "ipad": 30, "macbook": 60, "imac": 40, "mac_mini": 40}
+
+
+def reject_reason(title, price=None):
     """Kodel skelbimas netinka rinkos kainai: 'ne technika', 'priedas', 'dalis', 'kopija' arba None."""
     t = _norm(title)
     if _NOT_TECH_RE.search(t):
@@ -329,9 +340,16 @@ def reject_reason(title):
         return "dalis"
     if _FOR_PRODUCT_RE.search(t):
         return "priedas"
+    # „AirPods dėkliukas su karvutės raštu“, „iPad dėklas su klaviatūra“, „Hub & Stand“ – priedas, o
+    # „su“ / „&“ – jo savybė, ne produktas su priedu (tas būtų „AirPods Pro su dėklu“)
+    if _ACCESSORY_AND_RE.search(t):
+        return "priedas"
     first = t.split(None, 1)[0] if t.strip() else ""
     if first and _ACCESSORY_RE.fullmatch(first):
         return "priedas"
     if _ACCESSORY_RE.search(t) and not _BUNDLE_RE.search(t):
         return "priedas"
+    cat = category(title) if price is not None else None
+    if cat and price < MIN_PRICES.get(cat, 0):
+        return "per pigu"
     return None
