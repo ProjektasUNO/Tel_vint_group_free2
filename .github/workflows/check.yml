@@ -67,29 +67,34 @@ jobs:
         run: |
           # Busena issaugoma po KIEKVIENO paleidimo: nutrukus darbui prarandama ne daugiau
           # 5 min., o serveris gauna sviezia kainu baze.
+          # Viena darbine repozitorija visam ciklui. Pirmiausia parsisiunciam esama busena: tada push'as
+          # siuncia tik PAKITUSIUS failus (state.json, sios dienos archyvas), o ne visus ~17 MB kas 5 min.
+          # (2026-10-23: viso turinio push'ai nutrukdavo HTTP 408 – prarasta ~10 min.). Commit'as vis tiek
+          # be tevu (commit-tree), tad sakos istorija neauga.
+          state_repo=$(mktemp -d)
+          git -C "$state_repo" init -q
+          git -C "$state_repo" config user.name "github-actions"
+          git -C "$state_repo" config user.email "github-actions@users.noreply.github.com"
+          remote="https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY"
+          git -C "$state_repo" fetch -q --depth=1 "$remote" "$STATE_BRANCH" 2>/dev/null || echo "Busenos sakos dar nera"
+
           save_state() {
             if [ ! -f seen.json ] && [ ! -f state.json ]; then echo "Nera ko saugoti"; return 0; fi
-            work=$(mktemp -d)
-            for f in seen.json state.json; do [ -f "$f" ] && cp "$f" "$work/$f"; done
-            if [ -d archive ]; then cp -r archive "$work/archive"; fi
+            rm -rf "$state_repo/seen.json" "$state_repo/state.json" "$state_repo/archive"
+            for f in seen.json state.json; do [ -f "$f" ] && cp "$f" "$state_repo/$f"; done
+            if [ -d archive ]; then cp -r archive "$state_repo/archive"; fi
             (
-              cd "$work"
-              git init -q -b "$STATE_BRANCH"
-              git config user.name "github-actions"
-              git config user.email "github-actions@users.noreply.github.com"
+              cd "$state_repo"
               git add -A
-              git commit -q -m "Busena $(date -u '+%Y-%m-%d %H:%M UTC')"
+              commit=$(git commit-tree "$(git write-tree)" -m "Busena $(date -u '+%Y-%m-%d %H:%M UTC')")
               for i in 1 2 3; do
-                if git push -q --force "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY" "HEAD:refs/heads/$STATE_BRANCH"; then
+                if git push -q --force "$remote" "$commit:refs/heads/$STATE_BRANCH"; then
                   echo "Busena issaugota sakoje '$STATE_BRANCH'"; exit 0
                 fi
                 echo "Nepavyko issaugoti ($i)"; sleep $((i * 5))
               done
               exit 1
             )
-            rc=$?
-            rm -rf "$work"
-            return $rc
           }
 
           end=$(( $(date +%s) + LOOP_MINUTES * 60 ))

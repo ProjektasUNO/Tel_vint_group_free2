@@ -28,6 +28,17 @@ class ArchiveFileTest(unittest.TestCase):
             self.assertGreater(os.path.getsize("archive/market-2026-10-01.jsonl.gz"), size)
             self.assertEqual([e["e"] for e in archive.read()], ["obs", "price", "status"])
 
+    def test_skip_written_once_per_day(self):
+        """2026-10-23: kas 5 min. tas pats „below_floor“ – ~43 tūkst. įrašų per dieną. Dabar – kartą per dieną."""
+        with TempDir():
+            now = time.mktime((2026, 10, 1, 12, 0, 0, 0, 0, 0))
+            skip = {"e": "skip", "id": "vinted:1", "why": "below_floor", "p": 30}
+            self.assertEqual(archive.append([skip, dict(skip), {"e": "obs", "id": "vinted:2"}], now=now), 2)
+            self.assertEqual(archive.append([dict(skip), {"e": "obs", "id": "vinted:2"}], now=now), 1)
+            self.assertEqual(archive.append([dict(skip, p=25)], now=now), 1)        # kaina pasikeitė
+            self.assertEqual(archive.append([dict(skip)], now=now + 86400), 1)      # kita diena
+            self.assertEqual([e["e"] for e in archive.read()], ["skip", "obs", "obs", "skip", "skip"])
+
     def test_one_file_per_day_read_in_order(self):
         with TempDir():
             archive.append([{"e": "b"}], now=time.mktime((2026, 11, 2, 12, 0, 0, 0, 0, 0)))

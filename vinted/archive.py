@@ -44,10 +44,48 @@ def append(events, directory=None, now=None):
     directory = directory or config.ARCHIVE_DIR
     now = time.time() if now is None else now
     os.makedirs(directory, exist_ok=True)
+    path = _path(directory, now)
+    events = _new_skips_only(events, path)
+    if not events:
+        return 0
     lines = "".join(json.dumps(e, ensure_ascii=False, separators=(",", ":")) + "\n" for e in events)
-    with gzip.open(_path(directory, now), "ab") as f:
+    with gzip.open(path, "ab") as f:
         f.write(lines.encode("utf-8"))
     return len(events)
+
+
+def _skip_key(e):
+    return e.get("id"), e.get("why"), e.get("p")
+
+
+def _new_skips_only(events, path):
+    """„skip“ (kaina už ribų) – tas pats skelbimas kartojasi KIEKVIENĄ paleidimą. Nuo 2026-10-17
+    paleidimai kas 5 min., tad ~43 tūkst. vienodų įrašų per dieną (700 KB), o busenos šaka per
+    didelė – push'ai nutrūkdavo (HTTP 408). Rašom tik pirmą kartą per dieną (tas pats id, priežastis,
+    kaina); kiti įvykiai – visi."""
+    if not any(e.get("e") == "skip" for e in events):
+        return events
+    seen = set()
+    if os.path.exists(path):
+        try:
+            with gzip.open(path, "rt", encoding="utf-8") as f:
+                for line in f:
+                    if '"skip"' in line:
+                        try:
+                            seen.add(_skip_key(json.loads(line)))
+                        except ValueError:
+                            continue
+        except (OSError, EOFError):
+            pass
+    out = []
+    for e in events:
+        if e.get("e") == "skip":
+            key = _skip_key(e)
+            if key in seen:
+                continue
+            seen.add(key)
+        out.append(e)
+    return out
 
 
 def read(directory=None):
