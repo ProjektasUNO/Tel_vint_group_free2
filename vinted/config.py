@@ -85,6 +85,14 @@ DEFAULTS = {
     # Grupes skiltis Apple produktams („Apple produkcija“). Kol kas tik rinkimas – siuntimas
     # bus ijungtas, kai susikaups kainu duomenu.
     "PRODUCTS_TOPIC_ID": "",
+    # Deal'u siuntimas i PRODUCTS_TOPIC_ID (bandomasis): tik siu kategoriju, kai kaina bent
+    # PRODUCT_DEAL_DISCOUNT zemesne uz LT prasomu kainu mediana is >= PRODUCT_MIN_SAMPLES skelbimu
+    # (pagal archyva, be kopiju / priedu / defektu). Pardavimu istorijos produktams dar nera.
+    "PRODUCTS_SEND": False,
+    "PRODUCTS_SEND_CATEGORIES": ["airpods"],
+    "PRODUCT_DEAL_DISCOUNT": 0.20,
+    "PRODUCT_MIN_SAMPLES": 8,
+    "PRODUCT_REFERENCE_DAYS": 60,
     # Kiek pardavejo salies uzklausu per paleidima Apple produktams (is bendros
     # SELLER_COUNTRY_LOOKUPS kvotos, ne papildomai). Atsakymai isimenami.
     "PRODUCT_COUNTRY_LOOKUPS": 20,

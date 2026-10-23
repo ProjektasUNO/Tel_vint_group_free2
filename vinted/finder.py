@@ -1255,6 +1255,10 @@ class Run:
         details_left = int(c["PRODUCT_DETAILS_PER_RUN"])
         opened = waiting_desc = 0
         descs = {}                                  # {uid: aprasymas} siam paleidimui
+        send = bool(c.get("PRODUCTS_SEND")) and bool(c.get("PRODUCTS_TOPIC_ID"))
+        ref = products.reference(archive.read(), today, int(c["PRODUCT_REFERENCE_DAYS"]),
+                                 tuple(c["PRODUCTS_SEND_CATEGORIES"])) if send else {}
+        outbox = []                                 # deal'ai – siunciami po spynos
 
         def foreign(title):
             """Uzsienio kalba – bet ne leidziama (ALLOWED_LANGUAGES: LT, EN – lietuviai
@@ -1350,7 +1354,7 @@ class Run:
                                 if p.get("blocking"):
                                     why = "defektas (" + ", ".join(p["blocking"]) + ")"
                             if not why:
-                                why = products.fake_reason(x.title, x.price, desc)
+                                why = products.fake_reason(x.title, x.price, desc, model=p["model"])
                             if not why and p["cat"] == "airpods" and x.seller_id and \
                                     many.get((x.seller_id, p["model"]), 0) >= 3:
                                 # vienas pardavėjas – 3+ tokios pat AirPods: kopijų perpardavėjas
@@ -1369,12 +1373,28 @@ class Run:
                                 ct=(x.seller or {}).get("country"), chip=p.get("chip"), yr=p.get("year"),
                                 cell=p.get("cell"), case=p.get("case"), bnd=p.get("bundle") or None,
                                 dfx=p.get("defects") or None, dsc=len(desc or ""))
+                            med, n = ref.get(p["model"], (None, 0))
+                            if send and p["cat"] in c["PRODUCTS_SEND_CATEGORIES"] and med and \
+                                    n >= int(c["PRODUCT_MIN_SAMPLES"]) and \
+                                    x.price <= med * (1 - float(c["PRODUCT_DEAL_DISCOUNT"])) and \
+                                    x.condition != "Patenkinama" and \
+                                    not any(d != "įbrėžimai" for d in p.get("defects") or []):
+                                outbox.append((x, p, med, n, source))
                         elif isinstance(old, list):
                             if abs(float(old[0]) - x.price) >= 0.5:
                                 changed += 1
                                 self.state.market._event("pprice", x.uid, today, p=x.price, pp=old[0])
                                 old[0] = x.price
                             old[2] = today
+                for x, p, med, n, src in outbox:
+                    text = products.deal_card(p, x.price, med, n, x.url, x.condition, x.total_price,
+                                              src.label)
+                    if self.tg.send_message(text, topic=c["PRODUCTS_TOPIC_ID"]):
+                        with self.state.market.lock:
+                            self.state.market._event("palert", x.uid, today, c=p["cat"], m=p["model"],
+                                                     p=x.price, q=round(med, 2), n=n)
+                        print(f"Apple deal: {p['model']} {x.price:.0f}€ (LT ~{med:.0f}€, {n} skelb.)")
+                outbox.clear()
                 where = q if source.name == "vinted" else f"{source.label}: {q}"
                 print(f"Apple produktai [{where}]: gauta {len(listings)}, nauju {new}, kainos pasikeite "
                       f"{changed}, atmesta {rejected} (rinkimas – nesiunciama)")

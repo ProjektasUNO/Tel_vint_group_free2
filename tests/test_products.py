@@ -2,6 +2,7 @@
 priedu/daliu/kopiju atmetimas ir kainu kaupimas archyve. Niekas nesiunciama."""
 import contextlib
 import io
+import time
 import unittest
 
 from tests.helpers import reset_config, TempDir, item
@@ -226,6 +227,39 @@ class ObserveTest(unittest.TestCase):
             self.assertIsNone(fake_reason("AirPods Pro 3", 150, d), d)
         self.assertIsNone(fake_reason("AirPodsų dėklas", 10))              # galūnė su „ų“ – ne apgaulė
         self.assertIsNone(fake_reason("iPad Air 5", 5))                      # tik AirPods
+
+    def test_airpods_deal_sent_to_topic(self):
+        """Bandomasis siuntimas: AirPods >= 20 % pigiau už LT medianą (iš archyvo) – į Apple skiltį."""
+        reset_config(HEARTBEAT_HOURS=0, PRODUCTS_OBSERVE=True, PRODUCT_QUERIES=["airpods"],
+                     SEARCH_QUERIES=["iPhone 13"], PRODUCTS_SEND=True, PRODUCTS_TOPIC_ID="1534")
+        catalog = {"airpods": [item(1, "AirPods Pro 2", 60, user_id=1),         # 80 € mediana -> -25 %
+                               item(2, "AirPods Pro 2", 75, user_id=2),         # -6 % – ne deal'as
+                               item(3, "AirPods Pro 2", 50, user_id=3),         # žemiau kopijų ribos
+                               item(4, "AirPods Max", 150, user_id=4)]}         # modelio imties nėra
+        with TempDir():
+            today = int(time.time() // 86400)
+            archive.append([{"e": "pobs", "d": today, "id": f"vinted:{100 + i}", "c": "airpods",
+                             "m": "AirPods Pro 2", "p": 80, "ct": "LT", "ti": "AirPods Pro 2",
+                             "cond": "Labai gera"} for i in range(9)])
+            tg, log = run(catalog)
+            sent = [m for m in tg.messages if m.startswith("[skiltis 1534]")]
+            self.assertEqual(len(sent), 1, tg.messages)
+            self.assertIn("AirPods Pro 2</b> – <b>60 €", sent[0])
+            self.assertIn("−25 %", sent[0])
+            self.assertIn("/items/1", sent[0])
+            self.assertEqual([e["id"] for e in archive.read() if e["e"] == "palert"], ["vinted:1"])
+            self.assertEqual(tg.deals, [])                                     # telefonų srautas nepaliestas
+
+    def test_airpods_not_sent_when_off(self):
+        catalog = {"airpods": [item(1, "AirPods Pro 2", 60, user_id=1)], "ipad": [], "macbook": []}
+        reset_config(HEARTBEAT_HOURS=0, PRODUCTS_OBSERVE=True, PRODUCT_QUERIES=["airpods"],
+                     SEARCH_QUERIES=["iPhone 13"], PRODUCTS_TOPIC_ID="1534")
+        with TempDir():
+            today = int(time.time() // 86400)
+            archive.append([{"e": "pobs", "d": today, "id": f"vinted:{100 + i}", "c": "airpods",
+                             "m": "AirPods Pro 2", "p": 80, "ct": "LT", "ti": "AirPods Pro 2"} for i in range(9)])
+            tg, _ = run(catalog)
+            self.assertFalse([m for m in tg.messages if "skiltis" in m])
 
     def test_off_by_default(self):
         reset_config(HEARTBEAT_HOURS=0, SEARCH_QUERIES=["iPhone 13"])

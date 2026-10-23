@@ -75,11 +75,12 @@ class FakeTelegram:
         self.sent += 1
         return True
 
-    def send_message(self, text, silent=False, chat_id=None):
+    def send_message(self, text, silent=False, chat_id=None, topic=None):
         if self.fail_sends:
             self.note_error("atmete (403)")
             return False
-        self.messages.append(text if chat_id is None else f"[{chat_id}] {text}")
+        self.messages.append(f"[skiltis {topic}] {text}" if topic else
+                             text if chat_id is None else f"[{chat_id}] {text}")
         self.sent += 1
         return True
 

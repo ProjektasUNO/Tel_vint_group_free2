@@ -352,8 +352,8 @@ def homoglyph(title):
     return False
 
 
-def fake_reason(title, price=None, description=None):
-    """Kodėl AirPods tikriausiai kopija, arba None."""
+def fake_reason(title, price=None, description=None, model=None):
+    """Kodėl AirPods tikriausiai kopija, arba None. `model` – jei jau žinomas (iš aprašymo)."""
     if category(title) != "airpods":
         return None
     if homoglyph(title):
@@ -361,13 +361,13 @@ def fake_reason(title, price=None, description=None):
     if description and _FAKE_DESC_RE.search(_norm(description)):
         return "kopija (aprašymas)"
     if price is not None:
-        model = (detect(title) or {}).get("model")
+        model = model or (detect(title) or {}).get("model")
         if price < AIRPODS_FAKE_MIN.get(model, 0):
             return "galima kopija (per pigu)"
     return None
 
 
-def reject_reason(title, price=None):
+def reject_reason(title, price=None, model=None):
     """Kodel skelbimas netinka rinkos kainai: 'ne technika', 'priedas', 'dalis', 'kopija' arba None."""
     t = _norm(title)
     if _NOT_TECH_RE.search(t):
@@ -392,4 +392,51 @@ def reject_reason(title, price=None):
     cat = category(title) if price is not None else None
     if cat and price < MIN_PRICES.get(cat, 0):
         return "per pigu"
-    return fake_reason(title, price)
+    return fake_reason(title, price, model=model)
+
+
+# --- Deal'ai (bandomasis siuntimas) -------------------------------------------------------------
+def reference(events, today, days=60, categories=("airpods",)):
+    """{modelis: (mediana, imtis)} – LT prasomos kainos is archyvo `pobs` (paskutinis irasas
+    skelbimui), be priedu / kopiju / defektu / patenkinamos bukles. Filtrai taikomi is naujo,
+    tad senesni (iki filtru) irasai su kopijomis kainos nebeiskreipia."""
+    last = {}
+    for e in events:
+        if e.get("e") == "pobs" and e.get("c") in categories and e.get("ct") == "LT" \
+                and today - int(e.get("d") or 0) <= days:
+            last[e.get("id")] = e
+    prices = {}
+    for e in last.values():
+        p, m = e.get("p"), e.get("m")
+        if not p or not m or e.get("cond") == "Patenkinama":
+            continue
+        if any(d != "įbrėžimai" for d in (e.get("dfx") or [])):
+            continue
+        if reject_reason(e.get("ti") or "", p, model=m):
+            continue
+        prices.setdefault(m, []).append(float(p))
+    out = {}
+    for m, v in prices.items():
+        v.sort()
+        n = len(v)
+        out[m] = ((v[n // 2] if n % 2 else (v[n // 2 - 1] + v[n // 2]) / 2), n)
+    return out
+
+
+def deal_card(p, price, median, n, url, condition=None, total_price=None, source="Vinted"):
+    """Telegram kortele Apple produkto deal'ui (HTML)."""
+    import html
+    off = round((1 - price / median) * 100)
+    lines = [f"🎧 <b>{html.escape(p['model'])}</b> – <b>{price:.0f} €</b>"
+             + (f" ({total_price:.2f} € su mokesčiu)" if total_price and total_price > price else ""),
+             f"LT kaina: ~{median:.0f} € (−{off} %), pagal {n} skelb."]
+    extra = [x for x in [condition, f"dėklas {p['case']}" if p.get("case") else None,
+                         "su priedais" if p.get("bundle") else None] if x]
+    if extra:
+        lines.append(" · ".join(extra))
+    if p.get("defects"):
+        lines.append("⚠️ " + ", ".join(p["defects"]))
+    lines.append("🧪 Bandomoji vertė – pagal prašomas kainas. Prieš pirkdami patikrinkite serijos nr. "
+                 "(checkcoverage.apple.com) ir paprašykite nuotraukos su „Nustatymai → Bendra → Apie“.")
+    lines.append(f'<a href="{html.escape(url)}">🛒 Atidaryti {html.escape(source)}</a>')
+    return "\n".join(lines)

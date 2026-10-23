@@ -272,14 +272,16 @@ class Telegram:
     def _url(self, method):
         return f"https://api.telegram.org/bot{self.token}/{method}"
 
-    def send_message(self, text, silent=False, chat_id=None, brand=None):
+    def send_message(self, text, silent=False, chat_id=None, brand=None, topic=None):
         if config.cfg["DRY_RUN"]:
             print("[DRY_RUN] Telegram:", text.replace("\n", " | ")[:200])
             return True
         chat = chat_id or self.chat_id
         try:
             self._throttle(chat)
-            data = {**self._thread(chat, brand),
+            thread = ({"message_thread_id": str(topic)} if topic and str(chat) == self.chat_id
+                      else {} if topic else self._thread(chat, brand))
+            data = {**thread,
                     "chat_id": chat, "text": text[:4096], "parse_mode": "HTML",
                     "disable_web_page_preview": True, "disable_notification": silent}
             r = self._post("sendMessage", data, 15)

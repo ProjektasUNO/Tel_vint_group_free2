@@ -28,6 +28,7 @@
   "PRODUCTS_OBSERVE": true,
   "PRODUCTS_EVERY_MINUTES": 10,
   "PRODUCTS_TOPIC_ID": "1534",
+  "PRODUCTS_SEND": true,
   "SEARCH_QUERIES": [
     "iPhone 8",
     "iPhone 8 Plus",
