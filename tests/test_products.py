@@ -198,6 +198,35 @@ class ObserveTest(unittest.TestCase):
                              [("vinted:1", 270.0, 300.0)])
             self.assertEqual(State.load().products["vinted:1"][0], 270.0)
 
+    def test_airpods_fakes(self):
+        """2026-10-23: daug AirPods kopijų – per pigu, „Aírpods“, „1:1“ aprašyme, vienas pardavėjas 3+ vnt."""
+        reset_config(HEARTBEAT_HOURS=0, PRODUCTS_OBSERVE=True, PRODUCT_QUERIES=["airpods"],
+                     SEARCH_QUERIES=["iPhone 13"])
+        catalog = {"airpods": [item(1, "AirPods Pro 3", 160, user_id=1),
+                               item(2, "AirPods Pro 3", 60, user_id=2),
+                               item(3, "Aírpods Max", 200, user_id=3),
+                               item(4, "AirPods Max", 210, user_id=5),
+                               item(5, "AirPods Max", 210, user_id=5),
+                               item(6, "AirPods Max", 210, user_id=5),
+                               item(7, "AirPods 4 ANC", 90, user_id=6)]}
+        with TempDir():
+            run(catalog)
+            ev = [e for e in archive.read() if e["e"] in ("pobs", "px")]
+            self.assertEqual(sorted(e["id"] for e in ev if e["e"] == "pobs"), ["vinted:1", "vinted:7"])
+            why = {e["id"]: e["why"] for e in ev if e["e"] == "px"}
+            self.assertEqual(why["vinted:2"], "galima kopija (per pigu)")
+            self.assertEqual(why["vinted:3"], "kopija (raidės pavadinime)")
+            self.assertTrue(why["vinted:4"].startswith("galima kopija (pardavejas turi 3"), why)
+
+    def test_fake_reason(self):
+        from vinted.products import fake_reason
+        self.assertEqual(fake_reason("AirPods Pro 3", 150, "1:1 kokybė, turiu daugiau"), "kopija (aprašymas)")
+        self.assertEqual(fake_reason("AirPods Pro 2", 90, "Lux kopija"), "kopija (aprašymas)")
+        for d in ["Originalios, ne kopija", "nėra kopija, pirktos Tech Store", "Naudotos pusę metų", ""]:
+            self.assertIsNone(fake_reason("AirPods Pro 3", 150, d), d)
+        self.assertIsNone(fake_reason("AirPodsų dėklas", 10))              # galūnė su „ų“ – ne apgaulė
+        self.assertIsNone(fake_reason("iPad Air 5", 5))                      # tik AirPods
+
     def test_off_by_default(self):
         reset_config(HEARTBEAT_HOURS=0, SEARCH_QUERIES=["iPhone 13"])
         with TempDir():

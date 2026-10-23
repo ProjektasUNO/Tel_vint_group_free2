@@ -1318,6 +1318,11 @@ class Run:
                     self.sleep(c["DETAIL_SLEEP_SECONDS"])
                     if desc is not None:
                         descs[x.uid] = desc
+                many = {}
+                for x in listings:
+                    d = products.detect(x.title)
+                    if d and d["cat"] == "airpods" and x.seller_id:
+                        many[(x.seller_id, d["model"])] = many.get((x.seller_id, d["model"]), 0) + 1
                 with self.state.market.lock:
                     for x in listings:
                         p = products.detect(x.title)
@@ -1344,6 +1349,12 @@ class Run:
                                 p = products.enrich(x.title, desc) or p
                                 if p.get("blocking"):
                                     why = "defektas (" + ", ".join(p["blocking"]) + ")"
+                            if not why:
+                                why = products.fake_reason(x.title, x.price, desc)
+                            if not why and p["cat"] == "airpods" and x.seller_id and \
+                                    many.get((x.seller_id, p["model"]), 0) >= 3:
+                                # vienas pardavėjas – 3+ tokios pat AirPods: kopijų perpardavėjas
+                                why = f"galima kopija (pardavejas turi {many[(x.seller_id, p['model'])]} vnt.)"
                             if why:
                                 known[x.uid] = "x"
                                 rejected += 1

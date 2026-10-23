@@ -327,6 +327,46 @@ _ACCESSORY_AND_RE = re.compile(_ACCESSORY_RE.pattern + r"\s*(?:\b(?:su|with|z|ze
 MIN_PRICES = {"airpods": 15, "ipad": 30, "macbook": 60, "imac": 40, "mac_mini": 40}
 
 
+# --- AirPods kopijos -------------------------------------------------------------------------
+# 2026-10-23 rinkimas: „AirPods Pro 3“ už 5–70 €, 10 vienodų „Aírpods Max“ po 200 € (su „í“, kad
+# apeitų paieškos filtrus). Tikri naudoti (LT, 2026 m.) – ne pigiau nei:
+AIRPODS_FAKE_MIN = {"AirPods Pro 3": 100, "AirPods Pro 2": 55, "AirPods Pro": 35, "AirPods Max": 180,
+                    "AirPods 4 ANC": 60, "AirPods 4": 40, "AirPods 3": 30, "AirPods 2": 20, "AirPods": 20}
+_BRAND_RE = re.compile(r"air ?pods?|apple|i ?pad|mac ?book|imac")
+# Aprašyme: „kopija“, „1:1“, „lux / premium kokybė“, „originalo kokybės“, „kiniškos“, „keli vnt.“
+# (kopijų perpardavėjai). „Originalios, ne kopija“, „nėra kopija“ – ne.
+_FAKE_DESC_RE = re.compile(
+    r"(?<!\bne )(?<!\bnera )(?<!\bnot )(?<!\bnei )\b(?:kopij\w*|replik\w*|replica|clone|klon\w*|fake|"
+    r"high copy|master copy|aaa|1\s?:\s?1|lux\w*|premium kokyb\w*|originalo kokyb\w*|"
+    r"kaip original\w*|analog\w*|kinietisk\w*|kinisk\w*|ne apple|ne originali\w*|neoriginal\w*|"
+    r"turiu daugiau|turiu ir daugiau|keli vnt\w*|kelios poros|keliu poru|didmenin\w*|"
+    r"tws|i12|i9s)\b")
+
+
+def homoglyph(title):
+    """„Aírpods“, „Applé“ – raidė su ženklu pačiame prekės ženkle (ne galūnėje kaip „AirPodsų“)."""
+    for w in re.findall(r"\w+", title or ""):
+        m = _BRAND_RE.match(fold(w.lower()))
+        if m and len(fold(w.lower())) == len(w) and not w[:m.end()].isascii():
+            return True
+    return False
+
+
+def fake_reason(title, price=None, description=None):
+    """Kodėl AirPods tikriausiai kopija, arba None."""
+    if category(title) != "airpods":
+        return None
+    if homoglyph(title):
+        return "kopija (raidės pavadinime)"
+    if description and _FAKE_DESC_RE.search(_norm(description)):
+        return "kopija (aprašymas)"
+    if price is not None:
+        model = (detect(title) or {}).get("model")
+        if price < AIRPODS_FAKE_MIN.get(model, 0):
+            return "galima kopija (per pigu)"
+    return None
+
+
 def reject_reason(title, price=None):
     """Kodel skelbimas netinka rinkos kainai: 'ne technika', 'priedas', 'dalis', 'kopija' arba None."""
     t = _norm(title)
@@ -352,4 +392,4 @@ def reject_reason(title, price=None):
     cat = category(title) if price is not None else None
     if cat and price < MIN_PRICES.get(cat, 0):
         return "per pigu"
-    return None
+    return fake_reason(title, price)
