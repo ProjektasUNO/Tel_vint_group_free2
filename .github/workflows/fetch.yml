@@ -1,0 +1,66 @@
+name: Vinted parsiuntėjas
+
+# Tik parsiunčia, ką nurodo serveris (fetcher/fetch.py): jokio vertinimo, kainų ar Telegram.
+# Nuo 2026-10-29 – vienintelis Vinted kelias: kas valandą ~54 min. darbas, Vinted kas 5 min.
+# Be push trigerio, sava concurrency grupė.
+on:
+  schedule:
+    - cron: "7 * * * *"
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: "Kiek minučių kartoti (kas 5 min.)"
+        default: "54"
+      every:
+        description: "Kas kiek sekundžių (300 = 5 min.)"
+        default: "300"
+
+concurrency:
+  group: vinted-fetch
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: fetcher
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Įdiegti
+        run: pip install -q "curl_cffi>=0.16,<0.17"
+
+      - name: Ryšys su serveriu
+        env:
+          KEY: ${{ secrets.SERVER_SSH_KEY }}
+          KNOWN: ${{ secrets.SERVER_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/server && chmod 600 ~/.ssh/server
+          printf '%s\n' "$KNOWN" > ~/.ssh/known_hosts
+
+      - name: Kartoti
+        env:
+          HOST: ${{ secrets.SERVER_HOST }}
+          MINUTES: ${{ inputs.minutes || '54' }}
+          EVERY: ${{ inputs.every || '300' }}
+        run: |
+          end=$(( $(date +%s) + MINUTES * 60 ))
+          n=0
+          while :; do
+            n=$((n + 1)); began=$(date +%s)
+            echo "Paleidimas $n ($(date -u '+%H:%M UTC')): $(python fetcher/fetch.py ssh -T -i ~/.ssh/server \
+              -o BatchMode=yes -o StrictHostKeyChecking=yes -o LogLevel=ERROR -o ServerAliveInterval=30 \
+              "deal@$HOST" 2>/dev/null | tr '\n' ' ')"
+            next=$(( began + EVERY ))
+            [ "$next" -ge "$end" ] && break
+            now=$(date +%s); [ "$next" -gt "$now" ] && sleep $(( next - now ))
+          done
