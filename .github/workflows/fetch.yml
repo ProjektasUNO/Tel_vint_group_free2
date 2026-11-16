@@ -1,7 +1,10 @@
 name: Vinted parsiuntėjas
 
 # Tik parsiunčia, ką nurodo serveris (fetcher/fetch.py): jokio vertinimo, kainų ar Telegram.
-# Nuo 2026-10-29 – vienintelis Vinted kelias: kas valandą ~54 min. darbas, Vinted kas 5 min.
+# Nuo 2026-10-29 – vienintelis Vinted kelias: Vinted kas 5 min. Nuo 11-16 darbas ~110 min. (buvo 54): GitHub
+# dalį valandinių cron'ų praleidžia, o kiekvienas naujas darbas – ~17–22 min. spraga; ilgesnis darbas – perpus
+# mažiau spragų, užklausų per valandą tiek pat. Persidengę darbai laukia eilėje (concurrency), serverio sargas
+# (server/vinted_watchdog.py) paleidžia, kai duomenų nėra > 12 min.
 # Be push trigerio, sava concurrency grupė.
 on:
   schedule:
@@ -10,7 +13,7 @@ on:
     inputs:
       minutes:
         description: "Kiek minučių kartoti (kas 5 min.)"
-        default: "54"
+        default: "110"
       every:
         description: "Kas kiek sekundžių (300 = 5 min.)"
         default: "300"
@@ -25,7 +28,7 @@ permissions:
 jobs:
   fetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 70
+    timeout-minutes: 125
     steps:
       - uses: actions/checkout@v5
         with:
@@ -50,7 +53,7 @@ jobs:
       - name: Kartoti
         env:
           HOST: ${{ secrets.SERVER_HOST }}
-          MINUTES: ${{ inputs.minutes || '54' }}
+          MINUTES: ${{ inputs.minutes || '110' }}
           EVERY: ${{ inputs.every || '300' }}
         run: |
           end=$(( $(date +%s) + MINUTES * 60 ))
